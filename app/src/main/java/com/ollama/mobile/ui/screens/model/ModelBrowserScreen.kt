@@ -101,7 +101,7 @@ fun ModelBrowserScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Downloaded (${uiState.downloadedModels.size})") },
+                    text = { Text("Downloaded (${uiState.downloadedOfflineModels.size})") },
                     icon = { Icon(Icons.Default.Storage, contentDescription = null) }
                 )
                 Tab(
@@ -126,83 +126,6 @@ fun ModelBrowserScreen(
                     onChat = onNavigateToChat,
                     downloadingModels = uiState.downloadingOfflineModels
                 )
-            }
-        }
-    }
-}
-            )
-
-            SearchField(
-                query = uiState.searchQuery,
-                onQueryChange = viewModel::updateSearchQuery,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
-            FamilyFilterRow(
-                families = viewModel.getModelFamilies(),
-                selectedFamily = uiState.selectedFamily,
-                onFamilySelected = viewModel::selectFamily
-            )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                item {
-                    OfflineInfoCard()
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-
-                if (viewModel.getFilteredDownloadedModels().isNotEmpty()) {
-                    item {
-                        SectionTitle("Downloaded Offline Models")
-                    }
-                    items(viewModel.getFilteredDownloadedModels()) { model ->
-                        DownloadedOfflineModelCard(
-                            model = model,
-                            onDelete = { viewModel.deleteOfflineModel(model.id) },
-                            onOpen = { onNavigateToChat("offline:${model.id}") }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-
-                if (viewModel.getFilteredOfflineCatalog().isNotEmpty()) {
-                    item {
-                        SectionTitle("Offline Models To Download")
-                    }
-                    items(viewModel.getFilteredOfflineCatalog()) { model ->
-                        OfflineCatalogCard(
-                            model = model,
-                            progress = uiState.downloadingOfflineModels[model.id],
-                            status = uiState.offlineDownloadStatus[model.id],
-                            onDownload = { viewModel.downloadOfflineModel(model) }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
-
-                item {
-                    SectionTitle("Cloud Models")
-                }
-                items(viewModel.getFilteredModels()) { model ->
-                    CloudModelCard(
-                        model = model,
-                        onClick = { onNavigateToChat(model.name) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-            }
-        }
-
-        if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
             }
         }
     }
@@ -833,7 +756,7 @@ private fun BrowseModelItem(
 
             if (isDownloading && downloadProgress != null) {
                 CircularProgressIndicator(
-                    progress = { downloadProgress },
+                    progress = downloadProgress,
                     modifier = Modifier.size(24.dp)
                 )
             } else {

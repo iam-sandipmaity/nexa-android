@@ -187,8 +187,7 @@ fun ChatScreen(
                     value = uiState.inputText,
                     onValueChange = viewModel::updateInputText,
                     onSend = viewModel::sendMessage,
-                    enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty(),
-                    isOfflineModel = isOfflineModel
+                    enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty()
                 )
             }
         }

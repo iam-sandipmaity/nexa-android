@@ -53,7 +53,7 @@ class ChatViewModel(
     private fun loadAvailableModels() {
         viewModelScope.launch {
             try {
-                val cloudModels = repository.getModels().getOrNull() ?: emptyList()
+                val cloudModels = repository.getAvailableModels().getOrNull() ?: emptyList()
                 val downloadedModels = offlineRepository.getDownloadedModels()
                 _uiState.value = _uiState.value.copy(
                     availableModels = cloudModels,
