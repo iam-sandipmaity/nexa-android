@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudOff
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
@@ -780,7 +782,11 @@ private fun BrowseModelsTab(
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(filteredModels, key = { it.id ?: it.name }) { model ->
+            items(filteredModels, key = { when(it) {
+                is OfflineModelInfo -> it.id
+                is OllamaModelInfo -> it.id
+                else -> ""
+            } }) { model ->
                 when (selectedModelType) {
                     ModelType.OFFLINE -> {
                         val offlineModel = model as? OfflineModelInfo
