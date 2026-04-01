@@ -1,4 +1,4 @@
-package com.ollama.mobile.ui
+package com.ollama.mobile
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,9 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.ollama.mobile.CrashLogger
+import com.ollama.mobile.ui.OllamaApp
 import com.ollama.mobile.ui.theme.OllamaMobileTheme
 
 class MainActivity : ComponentActivity() {
@@ -54,7 +51,7 @@ class MainActivity : ComponentActivity() {
                         if (hasError) {
                             ErrorScreen(errorMessage, crashLog)
                         } else {
-                            SimpleApp()
+                            OllamaApp()
                         }
                     }
                 }
@@ -70,23 +67,6 @@ class MainActivity : ComponentActivity() {
                     ErrorScreen(errorMessage, crashLog)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SimpleApp() {
-    var step by mutableStateOf("Starting...")
-    
-    Column(
-        modifier = Modifier.padding(16.dp)
-    ) {
-        Text("Ollama Mobile v1.0", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Step: $step")
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { step = "Button clicked!" }) {
-            Text("Test Button")
         }
     }
 }

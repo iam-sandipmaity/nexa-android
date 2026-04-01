@@ -10,37 +10,9 @@ env:
   JAVA_VERSION: '17'
 
 jobs:
-  build:
-    name: Build Debug APK
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'gradle'
-
-      - name: Make gradlew executable
-        run: chmod +x gradlew
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
-
-      - name: Upload debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ollama-mobile-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
-
   build-release:
     name: Build Release APK
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,8 +26,8 @@ jobs:
 
       - name: Create debug keystore
         run: |
-          mkdir -p app
-          keytool -genkeypair -v -keystore app/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+          mkdir -p ~/.android
+          keytool -genkeypair -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug, OU=Android, O=Android, L=Mountain View, ST=California, C=US"
 
       - name: Make gradlew executable
         run: chmod +x gradlew

@@ -12,7 +12,7 @@ interface OllamaApi {
     @POST("/api/pull")
     suspend fun pullModel(@Body request: PullRequest): Response<PullResponse>
 
-    @DELETE("/api/delete")
+    @HTTP(method = "DELETE", path = "/api/delete", hasBody = true)
     suspend fun deleteModel(@Body request: DeleteModelRequest): Response<DeleteResponse>
 
     @GET("/api/show")
