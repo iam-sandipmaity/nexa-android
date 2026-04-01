@@ -53,7 +53,7 @@ fun ChatScreen(
     val focusManager = LocalFocusManager.current
     val drawerState = remember { mutableStateOf(false) }
     val drawerOffset by animateFloatAsState(
-        targetValue = if (drawerState.value) 0f else 1f,
+        targetValue = if (drawerState.value) 1f else 0f,
         label = "drawer"
     )
     
@@ -127,7 +127,7 @@ fun ChatScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Main content with offset animation
+        // Main content
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -251,7 +251,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .clickable { drawerState.value = false }
-                    .background(Color.Black.copy(alpha = 0.5f * (1 - drawerOffset)))
+                    .background(Color.Black.copy(alpha = 0.5f * drawerOffset))
             )
             
             // Drawer content
@@ -259,7 +259,7 @@ fun ChatScreen(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .graphicsLayer {
-                        translationX = (-300f * drawerOffset).dp.toPx()
+                        translationX = (-300f + (300f * drawerOffset)).dp.toPx()
                     },
                 history = uiState.chatHistory,
                 currentChatId = uiState.chatId,
