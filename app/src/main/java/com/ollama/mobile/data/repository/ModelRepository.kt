@@ -2,11 +2,21 @@ package com.ollama.mobile.data.repository
 
 import com.ollama.mobile.data.api.OllamaApi
 import com.ollama.mobile.data.api.RetrofitClient
-import com.ollama.mobile.data.model.*
-import com.ollama.mobile.domain.model.*
+import com.ollama.mobile.data.model.ChatRequest
+import com.ollama.mobile.data.model.ChatResponse
+import com.ollama.mobile.data.model.DeleteModelRequest
+import com.ollama.mobile.data.model.DeleteResponse
+import com.ollama.mobile.data.model.Message
+import com.ollama.mobile.data.model.ModelTag
+import com.ollama.mobile.data.model.PullRequest
+import com.ollama.mobile.data.model.PullResponse
+import com.ollama.mobile.domain.model.ChatMessage
+import com.ollama.mobile.domain.model.ChatResult
+import com.ollama.mobile.domain.model.LocalModel
+import com.ollama.mobile.domain.model.OllamaModelInfo
+import com.ollama.mobile.domain.model.ResponseMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import java.util.concurrent.TimeUnit
 
 class ModelRepository(private val api: OllamaApi = RetrofitClient.getApi()) {
 

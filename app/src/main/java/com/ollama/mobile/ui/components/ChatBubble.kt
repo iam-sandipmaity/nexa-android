@@ -6,7 +6,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
@@ -31,21 +30,21 @@ fun ChatBubble(
         if (isDark) AssistantBubble else AssistantBubbleLight
     }
     
-    val alignment = if (isUser) Alignment.End else Alignment.Start
     val shape = if (isUser) {
         RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
     } else {
         RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
     }
 
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = alignment
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
     ) {
         Text(
             text = message.content,
             modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 4.dp)
                 .clip(shape)
                 .background(bubbleColor)
                 .padding(12.dp),

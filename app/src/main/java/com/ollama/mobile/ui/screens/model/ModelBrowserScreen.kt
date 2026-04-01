@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.ollama.mobile.ui.screens.model
 
 import androidx.compose.animation.core.*
@@ -21,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ollama.mobile.domain.model.LocalModel
 import com.ollama.mobile.domain.model.OllamaModelInfo
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModelBrowserScreen(
     onNavigateToChat: (String) -> Unit,

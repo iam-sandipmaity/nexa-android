@@ -18,6 +18,9 @@ interface OllamaApi {
     @GET("/api/show")
     suspend fun getModelInfo(@Query("name") name: String): Response<ModelDetail>
 
+    @POST("/api/chat")
+    suspend fun chat(@Body request: ChatRequest): Response<ChatResponse>
+
     @GET("/")
     suspend fun health(): Response<Unit>
 }
