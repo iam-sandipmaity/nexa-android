@@ -1,18 +1,26 @@
 package com.ollama.mobile.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -27,6 +35,7 @@ import com.ollama.mobile.ui.theme.AssistantBubble
 import com.ollama.mobile.ui.theme.AssistantBubbleLight
 import com.ollama.mobile.ui.theme.UserBubble
 import com.ollama.mobile.ui.theme.UserBubbleLight
+import kotlinx.coroutines.delay
 
 private val DarkCodeBackground = Color(0xFF1E1E1E)
 private val LightCodeBackground = Color(0xFFF5F5F5)
@@ -40,6 +49,7 @@ fun ChatBubble(
 ) {
     val isUser = message.role == "user"
     val isDark = isSystemInDarkTheme()
+    val context = LocalContext.current
     
     val bubbleColor = if (isUser) {
         if (isDark) UserBubble else UserBubbleLight
@@ -74,21 +84,72 @@ fun ChatBubble(
                 .background(bubbleColor)
                 .padding(12.dp)
         ) {
-            SelectionContainer {
-                if (isUser) {
-                    Text(
-                        text = message.content,
-                        color = textColor,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                } else {
-                    RichMarkdownText(
-                        content = message.content,
-                        textColor = textColor,
-                        headerColor = headerColor,
-                        codeBackground = if (isDark) DarkCodeBackground else LightCodeBackground
-                    )
+            Column {
+                if (!isUser) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        CopyButton(text = message.content)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
+                
+                SelectionContainer {
+                    if (isUser) {
+                        Text(
+                            text = message.content,
+                            color = textColor,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    } else {
+                        RichMarkdownText(
+                            content = message.content,
+                            textColor = textColor,
+                            headerColor = headerColor,
+                            codeBackground = if (isDark) DarkCodeBackground else LightCodeBackground
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CopyButton(text: String) {
+    var copied by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    
+    IconButton(
+        onClick = {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Chat Response", text)
+            clipboard.setPrimaryClip(clip)
+            copied = true
+        },
+        modifier = Modifier.size(32.dp)
+    ) {
+        if (copied) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = "Copied",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+        } else {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = "Copy",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        
+        LaunchedEffect(copied) {
+            if (copied) {
+                kotlinx.coroutines.delay(2000)
+                copied = false
             }
         }
     }
@@ -228,20 +289,71 @@ private fun CodeBlock(
     codeBackground: Color,
     textColor: Color
 ) {
-    Box(
+    val context = LocalContext.current
+    var copied by remember { mutableStateOf(false) }
+    
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(codeBackground)
-            .padding(12.dp)
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(codeBackground.copy(alpha = 0.7f))
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Code",
+                style = MaterialTheme.typography.labelSmall,
+                color = textColor.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("Code", code)
+                    clipboard.setPrimaryClip(clip)
+                    copied = true
+                },
+                modifier = Modifier.size(28.dp)
+            ) {
+                if (copied) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Copied",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = "Copy code",
+                        tint = textColor.copy(alpha = 0.6f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+        
         Text(
             text = code,
             color = textColor.copy(alpha = 0.9f),
             fontFamily = FontFamily.Monospace,
             fontSize = 13.sp,
-            lineHeight = 18.sp
+            lineHeight = 18.sp,
+            modifier = Modifier.padding(12.dp)
         )
+        
+        LaunchedEffect(copied) {
+            if (copied) {
+                kotlinx.coroutines.delay(2000)
+                copied = false
+            }
+        }
     }
 }
 

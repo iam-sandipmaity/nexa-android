@@ -197,6 +197,9 @@ class ChatViewModel(
                 error = null
             )
             
+            // Save chat history immediately after user message
+            saveChatToHistory()
+            
             // Start streaming response
             streamingJob?.cancel()
             streamingJob = viewModelScope.launch {
@@ -222,6 +225,9 @@ class ChatViewModel(
                         isLoading = false,
                         streamingResponse = ""
                     )
+                    
+                    // Save chat history after assistant response
+                    saveChatToHistory()
                 } catch (e: Exception) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -251,6 +257,9 @@ class ChatViewModel(
             error = null
         )
 
+        // Save chat history immediately after user message
+        saveChatToHistory()
+
         viewModelScope.launch {
             repository.chat(_uiState.value.selectedModel, newMessages).fold(
                 onSuccess = { result ->
@@ -263,6 +272,8 @@ class ChatViewModel(
                         isLoading = false,
                         isConnected = true
                     )
+                    // Save chat history after assistant response
+                    saveChatToHistory()
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(

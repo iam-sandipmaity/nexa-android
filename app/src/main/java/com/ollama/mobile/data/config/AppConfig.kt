@@ -3,6 +3,9 @@ package com.ollama.mobile.data.config
 import android.content.Context
 import com.ollama.mobile.BuildConfig
 import com.ollama.mobile.data.repository.ChatHistoryRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 object AppConfig {
     private const val PREFS_NAME = "ollama_mobile_config"
@@ -17,12 +20,16 @@ object AppConfig {
 
     private var initialized = false
     private lateinit var appContext: Context
+    
+    private val _themeModeFlow = MutableStateFlow(THEME_SYSTEM)
+    val themeModeFlow: StateFlow<Int> = _themeModeFlow.asStateFlow()
 
     fun init(context: Context) {
         if (initialized) return
         appContext = context.applicationContext
         initialized = true
         seedFromBuildConfigIfNeeded()
+        _themeModeFlow.value = getThemeMode()
     }
 
     private fun prefs() = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -63,6 +70,7 @@ object AppConfig {
     fun setThemeMode(mode: Int) {
         ensureInitialized()
         prefs().edit().putInt(KEY_THEME_MODE, mode).apply()
+        _themeModeFlow.value = mode
     }
     
     fun getAppContext(): Context {

@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -35,7 +36,7 @@ fun OllamaMobileTheme(
     val context = LocalContext.current
     val systemDark = isSystemInDarkTheme()
     
-    val themeMode = try { AppConfig.getThemeMode() } catch (e: Exception) { AppConfig.THEME_SYSTEM }
+    val themeMode by AppConfig.themeModeFlow.collectAsState()
     
     val darkTheme = when (themeMode) {
         AppConfig.THEME_DARK -> true
