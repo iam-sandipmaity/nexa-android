@@ -38,10 +38,6 @@ android {
             "OLLAMA_API_KEY",
             "\"${(localProperties.getProperty("ollama.apiKey") ?: "").replace("\"", "\\\"")}\""
         )
-        
-        ndk {
-            abiFilters += listOf("arm64-v8a")
-        }
     }
 
     buildTypes {
@@ -72,16 +68,6 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    
-    // NDK and CMake for native llama.cpp
-    ndkVersion = "26.1.10909125"
-    
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
         }
     }
 }

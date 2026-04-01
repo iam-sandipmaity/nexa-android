@@ -25,14 +25,9 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK with NDK
         uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;$ANDROID_NDK_VERSION" || true
-          ls -la $ANDROID_HOME/ndk/
-
+        
       - name: Create debug keystore
         run: |
           mkdir -p ~/.android
@@ -41,12 +36,12 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build release APK
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Build release APK (without NDK for now)
+        run: ./gradlew assembleRelease --no-daemon -x externalNativeBuildRelease
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
         with:
           name: ollama-mobile-release
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
           retention-days: 30
