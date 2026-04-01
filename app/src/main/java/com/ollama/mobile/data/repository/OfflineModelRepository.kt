@@ -22,8 +22,10 @@ class OfflineModelRepository {
     }
     private val downloadClient by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.MINUTES)
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.SECONDS) // No timeout for large file downloads
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
     }
 
