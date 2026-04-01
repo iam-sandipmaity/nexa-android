@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
 data class ChatUiState(
@@ -391,3 +392,6 @@ class ChatViewModel(
             emptyList()
         }
     }
+
+    private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
+}

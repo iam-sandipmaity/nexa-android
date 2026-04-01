@@ -280,6 +280,9 @@ fun ChatScreen(
                     viewModel.initializeWithModel(uiState.selectedModel)
                     drawerState.value = false
                 },
+                onSaveChat = {
+                    viewModel.saveChatToHistory()
+                },
                 onDeleteChat = { chatId ->
                     viewModel.deleteChat(chatId)
                 },
@@ -486,6 +489,7 @@ private fun HistoryDrawer(
     currentChatId: String?,
     onChatSelected: (String, String) -> Unit,
     onNewChat: () -> Unit,
+    onSaveChat: () -> Unit,
     onDeleteChat: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onClose: () -> Unit
@@ -521,9 +525,8 @@ private fun HistoryDrawer(
             // New Chat Button
             Button(
                 onClick = {
+                    onSaveChat()
                     onNewChat()
-                    // Save current chat to history before starting new one
-                    viewModel.saveChatToHistory()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
