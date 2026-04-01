@@ -478,7 +478,7 @@ private fun HistoryDrawer(
         modifier = modifier
             .width(300.dp)
             .fillMaxHeight(),
-        shape = RoundedCornerShape(end = 24.dp),
+        shape = RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp),
         tonalElevation = 8.dp
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
