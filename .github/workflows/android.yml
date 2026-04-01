@@ -26,6 +26,9 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Run lint
         run: ./gradlew lint
         continue-on-error: true
@@ -52,6 +55,9 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --no-daemon
 
@@ -76,6 +82,9 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
       - name: Build release APK
         run: ./gradlew assembleRelease --no-daemon
@@ -105,6 +114,9 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
       - name: Run unit tests
         run: ./gradlew test --no-daemon
