@@ -109,6 +109,9 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
     // Local Inference - llama-kotlin-android for GGUF models
     implementation("org.codeshipping:llama-kotlin-android:0.1.2")
 

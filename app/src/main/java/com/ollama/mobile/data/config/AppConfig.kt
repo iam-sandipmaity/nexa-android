@@ -12,11 +12,19 @@ object AppConfig {
     private const val KEY_BASE_URL = "base_url"
     private const val KEY_API_KEY = "api_key"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_FONT_SIZE = "font_size"
     private const val DEFAULT_BASE_URL = "https://ollama.com/"
     
     const val THEME_SYSTEM = 0
     const val THEME_LIGHT = 1
     const val THEME_DARK = 2
+
+    const val FONT_SMALL = 0
+    const val FONT_MEDIUM = 1
+    const val FONT_LARGE = 2
+
+    private val _fontSizeFlow = MutableStateFlow(FONT_MEDIUM)
+    val fontSizeFlow: StateFlow<Int> = _fontSizeFlow.asStateFlow()
 
     private var initialized = false
     private lateinit var appContext: Context
@@ -30,6 +38,7 @@ object AppConfig {
         initialized = true
         seedFromBuildConfigIfNeeded()
         _themeModeFlow.value = getThemeMode()
+        _fontSizeFlow.value = getFontSize()
     }
 
     private fun prefs() = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -71,6 +80,17 @@ object AppConfig {
         ensureInitialized()
         prefs().edit().putInt(KEY_THEME_MODE, mode).apply()
         _themeModeFlow.value = mode
+    }
+    
+    fun getFontSize(): Int {
+        ensureInitialized()
+        return prefs().getInt(KEY_FONT_SIZE, FONT_MEDIUM)
+    }
+    
+    fun setFontSize(size: Int) {
+        ensureInitialized()
+        prefs().edit().putInt(KEY_FONT_SIZE, size).apply()
+        _fontSizeFlow.value = size
     }
     
     fun getAppContext(): Context {

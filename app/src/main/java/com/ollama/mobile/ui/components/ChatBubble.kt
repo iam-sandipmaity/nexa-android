@@ -85,16 +85,6 @@ fun ChatBubble(
                 .padding(12.dp)
         ) {
             Column {
-                if (!isUser) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        CopyButton(text = message.content)
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                
                 SelectionContainer {
                     if (isUser) {
                         Text(
@@ -109,6 +99,16 @@ fun ChatBubble(
                             headerColor = headerColor,
                             codeBackground = if (isDark) DarkCodeBackground else LightCodeBackground
                         )
+                    }
+                }
+                
+                if (!isUser) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        CopyButton(text = message.content)
                     }
                 }
             }

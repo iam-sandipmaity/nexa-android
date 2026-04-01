@@ -1,5 +1,7 @@
 package com.ollama.mobile.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,10 +20,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ollama.mobile.data.config.AppConfig
+import com.ollama.mobile.domain.model.familyLogos
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,6 +36,7 @@ fun SettingsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showFontSizeDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
@@ -43,6 +49,17 @@ fun SettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    if (showFontSizeDialog) {
+        FontSizeSelectionDialog(
+            currentSize = try { AppConfig.getFontSize() } catch (e: Exception) { AppConfig.FONT_MEDIUM },
+            onSizeSelected = { size ->
+                AppConfig.setFontSize(size)
+                showFontSizeDialog = false
+            },
+            onDismiss = { showFontSizeDialog = false }
         )
     }
 
@@ -242,8 +259,12 @@ fun SettingsScreen(
                 SettingsClickableItem(
                     icon = Icons.Default.TextFields,
                     title = "Font Size",
-                    subtitle = "Medium",
-                    onClick = { /* TODO: Font size settings */ }
+                    subtitle = when (try { AppConfig.getFontSize() } catch (e: Exception) { AppConfig.FONT_MEDIUM }) {
+                        AppConfig.FONT_SMALL -> "Small"
+                        AppConfig.FONT_LARGE -> "Large"
+                        else -> "Medium"
+                    },
+                    onClick = { showFontSizeDialog = true }
                 )
             }
 
@@ -368,14 +389,23 @@ fun SettingsScreen(
                 subtitle = "Developer information"
             )
             
+            val context = LocalContext.current
+            
             SettingsCard {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(40.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://profile.sandipmaity.me"))
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        AsyncImage(
+                            model = "https://x.com/iam_sandipmaity/photo",
+                            contentDescription = "Profile Photo",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
@@ -399,7 +429,10 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { /* TODO: Open GitHub */ },
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/iam-sandipmaity"))
+                                context.startActivity(intent)
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -412,7 +445,10 @@ fun SettingsScreen(
                         }
                         
                         OutlinedButton(
-                            onClick = { /* TODO: Open LinkedIn */ },
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://linkedin.com/in/iam-sandipmaity"))
+                                context.startActivity(intent)
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -432,14 +468,26 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { /* TODO: Open X/Twitter */ },
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://x.com/iam_sandipmaity"))
+                                context.startActivity(intent)
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("X / Twitter", style = MaterialTheme.typography.labelMedium)
+                            Icon(
+                                Icons.Default.AlignHorizontalLeft,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("X")
                         }
                         
                         OutlinedButton(
-                            onClick = { /* TODO: Open Instagram */ },
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/iam_sandipmaity"))
+                                context.startActivity(intent)
+                            },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
@@ -749,6 +797,45 @@ private fun ThemeOption(
             )
         }
     }
+}
+
+@Composable
+private fun FontSizeSelectionDialog(
+    currentSize: Int,
+    onSizeSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose Font Size", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ThemeOption(
+                    title = "Small",
+                    icon = Icons.Default.ArrowDropDown,
+                    selected = currentSize == AppConfig.FONT_SMALL,
+                    onClick = { onSizeSelected(AppConfig.FONT_SMALL) }
+                )
+                ThemeOption(
+                    title = "Medium",
+                    icon = Icons.Default.TextFields,
+                    selected = currentSize == AppConfig.FONT_MEDIUM,
+                    onClick = { onSizeSelected(AppConfig.FONT_MEDIUM) }
+                )
+                ThemeOption(
+                    title = "Large",
+                    icon = Icons.Default.ArrowDropUp,
+                    selected = currentSize == AppConfig.FONT_LARGE,
+                    onClick = { onSizeSelected(AppConfig.FONT_LARGE) }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 @Composable
