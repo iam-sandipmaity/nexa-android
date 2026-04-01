@@ -2,8 +2,11 @@ package com.ollama.mobile.ui.screens.chat
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +21,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -45,9 +51,13 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val drawerState = remember { mutableStateOf(false) }
+    val drawerOffset by animateFloatAsState(
+        targetValue = if (drawerState.value) 0f else 1f,
+        label = "drawer"
+    )
     
     var showModelSelector by remember { mutableStateOf(false) }
-    var showModelDropdown by remember { mutableStateOf(false) }
     var showApiKeyDialog by remember { mutableStateOf(false) }
     var apiKeyInput by remember { mutableStateOf("") }
     var modelSearchQuery by remember { mutableStateOf("") }
@@ -69,6 +79,12 @@ fun ChatScreen(
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
+        }
+    }
+
+    if (drawerState.value) {
+        BackHandler {
+            drawerState.value = false
         }
     }
 
@@ -109,114 +125,160 @@ fun ChatScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(
-                        modifier = Modifier.clickable { showModelSelector = true },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Chat", fontWeight = FontWeight.Bold)
-                        if (uiState.selectedModel.isNotEmpty()) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { showModelSelector = true }) {
-                        Icon(Icons.Default.Menu, contentDescription = "History")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onNavigateToModels) {
-                        Icon(Icons.Default.Storage, contentDescription = "Models")
-                    }
-                    IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            )
-        }
-    ) { paddingValues ->
-        Column(
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Main content with offset animation
+        Scaffold(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            if (uiState.selectedModel.isEmpty()) {
-                EmptyStateSection(
-                    onSelectModel = { showModelSelector = true },
-                    onNavigateToModels = onNavigateToModels
-                )
-            } else {
-                if (uiState.error != null && !uiState.isLoading) {
-                    ErrorBanner(
-                        error = uiState.error!!,
-                        onDismiss = viewModel::clearError
-                    )
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    state = listState,
-                    contentPadding = PaddingValues(vertical = 8.dp)
-                ) {
-                    items(uiState.messages) { message ->
-                        ChatBubble(message = message)
-                    }
-
-                    if (uiState.isLoading && uiState.streamingResponse.isNotEmpty()) {
-                        item {
-                            ChatBubble(
-                                message = ChatMessage(
-                                    role = "assistant",
-                                    content = uiState.streamingResponse
+                .graphicsLayer {
+                    translationX = (300f * drawerOffset).dp.toPx()
+                },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            modifier = Modifier.clickable { showModelSelector = true },
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Chat", fontWeight = FontWeight.Bold)
+                            if (uiState.selectedModel.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            )
-                        }
-                    }
-
-                    if (uiState.isLoading && uiState.streamingResponse.isEmpty()) {
-                        item {
-                            LoadingIndicator()
-                        }
-                    }
-                }
-
-                MessageInputArea(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    onSend = {
-                        if (inputText.isNotBlank()) {
-                            viewModel.updateInputText(inputText)
-                            viewModel.sendMessage()
-                            inputText = ""
+                            }
                         }
                     },
-                    enabled = !uiState.isLoading,
-                    showModelDropdown = showModelDropdown,
-                    onToggleModelDropdown = { showModelDropdown = !showModelDropdown },
-                    selectedModel = uiState.selectedModel.removePrefix("offline:"),
-                    onModelSelected = { modelName ->
-                        viewModel.initializeWithModel(modelName)
-                        showModelDropdown = false
+                    navigationIcon = {
+                        IconButton(onClick = { drawerState.value = true }) {
+                            Icon(Icons.Default.Menu, contentDescription = "History")
+                        }
                     },
-                    availableModels = uiState.availableModels,
-                    downloadedModels = uiState.downloadedModels,
-                    currentModel = uiState.selectedModel
+                    actions = {
+                        IconButton(onClick = onNavigateToModels) {
+                            Icon(Icons.Default.Storage, contentDescription = "Models")
+                        }
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
                 )
             }
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = { },
+                            onHorizontalDrag = { change, dragAmount ->
+                                if (dragAmount > 30 && !drawerState.value) {
+                                    drawerState.value = true
+                                }
+                            }
+                        )
+                    }
+            ) {
+                if (uiState.selectedModel.isEmpty()) {
+                    EmptyStateSection(
+                        onSelectModel = { showModelSelector = true },
+                        onNavigateToModels = onNavigateToModels
+                    )
+                } else {
+                    if (uiState.error != null && !uiState.isLoading) {
+                        ErrorBanner(
+                            error = uiState.error!!,
+                            onDismiss = viewModel::clearError
+                        )
+                    }
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        state = listState,
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(uiState.messages) { message ->
+                            ChatBubble(message = message)
+                        }
+
+                        if (uiState.isLoading && uiState.streamingResponse.isNotEmpty()) {
+                            item {
+                                ChatBubble(
+                                    message = ChatMessage(
+                                        role = "assistant",
+                                        content = uiState.streamingResponse
+                                    )
+                                )
+                            }
+                        }
+
+                        if (uiState.isLoading && uiState.streamingResponse.isEmpty()) {
+                            item {
+                                LoadingIndicator()
+                            }
+                        }
+                    }
+
+                    MessageInputBox(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        onSend = {
+                            if (inputText.isNotBlank()) {
+                                viewModel.updateInputText(inputText)
+                                viewModel.sendMessage()
+                                inputText = ""
+                            }
+                        },
+                        enabled = !uiState.isLoading
+                    )
+                }
+            }
+        }
+
+        // History Drawer overlay
+        if (drawerState.value) {
+            // Dim background
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { drawerState.value = false }
+                    .background(Color.Black.copy(alpha = 0.5f * (1 - drawerOffset)))
+            )
+            
+            // Drawer content
+            HistoryDrawer(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .graphicsLayer {
+                        translationX = (-300f * drawerOffset).dp.toPx()
+                    },
+                history = uiState.chatHistory,
+                currentChatId = uiState.chatId,
+                onChatSelected = { chatId, modelName ->
+                    viewModel.initializeWithChat(modelName, chatId)
+                    drawerState.value = false
+                },
+                onNewChat = {
+                    viewModel.initializeWithModel(uiState.selectedModel)
+                    drawerState.value = false
+                },
+                onDeleteChat = { chatId ->
+                    viewModel.deleteChat(chatId)
+                },
+                onNavigateToSettings = {
+                    drawerState.value = false
+                    onNavigateToSettings()
+                },
+                onClose = { drawerState.value = false }
+            )
         }
     }
 }
@@ -228,6 +290,8 @@ private fun ApiKeySetupDialog(
     onSave: () -> Unit,
     onSkip: () -> Unit
 ) {
+    val context = LocalContext.current
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -238,7 +302,8 @@ private fun ApiKeySetupDialog(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .padding(16.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -285,6 +350,7 @@ private fun ApiKeySetupDialog(
                     placeholder = { Text("Paste your Ollama API key") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
                     leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) }
                 )
                 
@@ -296,7 +362,8 @@ private fun ApiKeySetupDialog(
                 ) {
                     OutlinedButton(
                         onClick = onSkip,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Skip")
                     }
@@ -304,7 +371,8 @@ private fun ApiKeySetupDialog(
                     Button(
                         onClick = onSave,
                         enabled = apiKey.isNotBlank(),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Connect")
                     }
@@ -313,7 +381,12 @@ private fun ApiKeySetupDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 TextButton(
-                    onClick = { /* Open browser */ }
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ollama.com/"))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {}
+                    }
                 ) {
                     Text("Get API Key from Ollama")
                 }
@@ -322,159 +395,214 @@ private fun ApiKeySetupDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MessageInputArea(
+private fun MessageInputBox(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
-    enabled: Boolean,
-    showModelDropdown: Boolean,
-    onToggleModelDropdown: () -> Unit,
-    selectedModel: String,
-    onModelSelected: (String) -> Unit,
-    availableModels: List<OllamaModelInfo>,
-    downloadedModels: List<DownloadedOfflineModel>,
-    currentModel: String
+    enabled: Boolean
 ) {
     val focusManager = LocalFocusManager.current
     
-    Column {
-        if (showModelDropdown) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                tonalElevation = 2.dp
-            ) {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 200.dp),
-                    contentPadding = PaddingValues(8.dp)
-                ) {
-                    if (downloadedModels.isNotEmpty()) {
-                        items(downloadedModels) { model ->
-                            DropdownModelItem(
-                                name = model.displayName,
-                                subtitle = "Offline",
-                                isSelected = currentModel == "offline:${model.id}",
-                                onClick = { onModelSelected("offline:${model.id}") }
-                            )
-                        }
-                    }
-                    
-                    if (availableModels.isNotEmpty()) {
-                        items(availableModels.take(8)) { model ->
-                            DropdownModelItem(
-                                name = model.displayName,
-                                subtitle = model.size,
-                                isSelected = currentModel == model.name,
-                                onClick = { onModelSelected(model.name) }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 3.dp,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Message...") },
-                    enabled = enabled,
-                    maxLines = 4,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(
-                        onSend = {
-                            focusManager.clearFocus()
-                            onSend()
-                        }
-                    )
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Message...") },
+                enabled = enabled,
+                maxLines = 4,
+                shape = RoundedCornerShape(24.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(
+                    onSend = {
+                        focusManager.clearFocus()
+                        onSend()
+                    }
                 )
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(
-                        onClick = onToggleModelDropdown,
-                        enabled = enabled
-                    ) {
-                        Icon(
-                            Icons.Default.ModelTraining,
-                            contentDescription = "Select Model",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    
-                    IconButton(
-                        onClick = {
-                            focusManager.clearFocus()
-                            onSend()
-                        },
-                        enabled = enabled && value.isNotBlank()
-                    ) {
-                        Icon(
-                            Icons.Default.Send,
-                            contentDescription = "Send",
-                            tint = if (enabled && value.isNotBlank()) 
-                                MaterialTheme.colorScheme.primary 
-                            else 
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        )
-                    }
-                }
+            )
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            IconButton(
+                onClick = {
+                    focusManager.clearFocus()
+                    onSend()
+                },
+                enabled = enabled && value.isNotBlank(),
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        if (enabled && value.isNotBlank()) 
+                            MaterialTheme.colorScheme.primary 
+                        else 
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                    )
+            ) {
+                Icon(
+                    Icons.Default.Send,
+                    contentDescription = "Send",
+                    tint = if (enabled && value.isNotBlank()) 
+                        MaterialTheme.colorScheme.onPrimary 
+                    else 
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun DropdownModelItem(
-    name: String,
-    subtitle: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
+private fun HistoryDrawer(
+    modifier: Modifier = Modifier,
+    history: List<ChatHistoryRepository.ChatHistoryEntry>,
+    currentChatId: String?,
+    onChatSelected: (String, String) -> Unit,
+    onNewChat: () -> Unit,
+    onDeleteChat: (String) -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onClose: () -> Unit
 ) {
+    Surface(
+        modifier = modifier
+            .width(300.dp)
+            .fillMaxHeight(),
+        shape = RoundedCornerShape(end = 24.dp),
+        tonalElevation = 8.dp
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "History",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+            
+            Divider()
+            
+            // New Chat Button
+            Button(
+                onClick = onNewChat,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("New Chat")
+            }
+            
+            Divider()
+            
+            // History List
+            LazyColumn(
+                modifier = Modifier.weight(1f)
+            ) {
+                items(history) { chat ->
+                    HistoryDrawerItem(
+                        chat = chat,
+                        isSelected = chat.id == currentChatId,
+                        onClick = { onChatSelected(chat.id, chat.modelName) },
+                        onDelete = { onDeleteChat(chat.id) }
+                    )
+                }
+            }
+            
+            Divider()
+            
+            // Settings
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onNavigateToSettings)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = null)
+                Spacer(modifier = Modifier.width(16.dp))
+                Text("Settings")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryDrawerItem(
+    chat: ChatHistoryRepository.ChatHistoryEntry,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Chat") },
+            text = { Text("Are you sure you want to delete this chat?") },
+            confirmButton = {
+                TextButton(onClick = { onDelete(); showDeleteDialog = false }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick)
             .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                 else MaterialTheme.colorScheme.surface
             )
-            .padding(12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = name,
+                text = chat.messages.firstOrNull()?.content?.take(30) ?: "Empty chat",
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                maxLines = 1
             )
             Text(
-                text = subtitle,
+                text = chat.modelName,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
         
-        if (isSelected) {
-            Icon(
-                Icons.Default.Check,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
-            )
+        IconButton(onClick = { showDeleteDialog = true }) {
+            Icon(Icons.Default.Delete, contentDescription = "Delete")
         }
     }
 }
@@ -518,7 +646,8 @@ private fun EmptyStateSection(
         
         Button(
             onClick = onSelectModel,
-            modifier = Modifier.fillMaxWidth(0.7f)
+            modifier = Modifier.fillMaxWidth(0.7f),
+            shape = RoundedCornerShape(24.dp)
         ) {
             Icon(Icons.Default.ModelTraining, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -529,7 +658,8 @@ private fun EmptyStateSection(
         
         OutlinedButton(
             onClick = onNavigateToModels,
-            modifier = Modifier.fillMaxWidth(0.7f)
+            modifier = Modifier.fillMaxWidth(0.7f),
+            shape = RoundedCornerShape(24.dp)
         ) {
             Icon(Icons.Default.CloudDownload, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
@@ -602,7 +732,8 @@ private fun ModelSelectorDialog(
                     placeholder = { Text("Search models...") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -692,7 +823,7 @@ private fun ModelListItem(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick),
         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer 
                 else MaterialTheme.colorScheme.surface
@@ -704,7 +835,7 @@ private fun ModelListItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
