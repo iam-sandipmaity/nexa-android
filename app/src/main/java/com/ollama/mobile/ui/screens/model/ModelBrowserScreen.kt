@@ -630,6 +630,7 @@ private fun BrowseModelItem(
 
             if (isDownloading && downloadProgress != null) {
                 CircularProgressIndicator(
+                    progress = downloadProgress.coerceIn(0f, 1f),
                     modifier = Modifier.size(28.dp),
                     strokeWidth = 3.dp
                 )
