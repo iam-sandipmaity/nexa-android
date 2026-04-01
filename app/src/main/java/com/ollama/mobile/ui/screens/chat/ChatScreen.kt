@@ -103,6 +103,7 @@ fun ChatScreen(
                 showApiKeyDialog = false
             }
         )
+        return
     }
 
     if (showModelSelector) {
