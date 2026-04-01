@@ -353,6 +353,17 @@ class ChatViewModel(
         _uiState.value = _uiState.value.copy(messages = emptyList())
     }
 
+    fun startNewChat(modelName: String) {
+        _uiState.value = _uiState.value.copy(
+            messages = emptyList(),
+            chatId = UUID.randomUUID().toString(),
+            selectedModel = modelName,
+            streamingResponse = "",
+            isLoading = false,
+            error = null
+        )
+    }
+
     fun saveChatToHistory() {
         val chatId = _uiState.value.chatId ?: return
         val modelName = _uiState.value.selectedModel

@@ -121,6 +121,7 @@ fun ModelBrowserScreen(
                 1 -> BrowseModelsTab(
                     offlineModels = uiState.offlineCatalog,
                     downloadedModels = uiState.downloadedOfflineModels,
+                    cloudModels = uiState.availableModels,
                     onSearchQueryChange = viewModel::updateSearchQuery,
                     onDownload = viewModel::downloadOfflineModel,
                     onChat = onNavigateToChat,
@@ -667,6 +668,7 @@ private fun DownloadedModelItem(
 private fun BrowseModelsTab(
     offlineModels: List<OfflineModelInfo>,
     downloadedModels: List<DownloadedOfflineModel>,
+    cloudModels: List<com.ollama.mobile.domain.model.OllamaModelInfo>,
     onSearchQueryChange: (String) -> Unit,
     onDownload: (OfflineModelInfo) -> Unit,
     onChat: (String) -> Unit,
@@ -675,34 +677,214 @@ private fun BrowseModelsTab(
     val downloadedIds = downloadedModels.map { it.id }.toSet()
     val availableToDownload = offlineModels.filterNot { it.id in downloadedIds }
     
+    var selectedModelType by remember { mutableStateOf(ModelType.OFFLINE) }
+    var selectedCategory by remember { mutableStateOf("All") }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    val categories = listOf("All", "Coding", "Thinking", "Research", "Creative", "General")
+    
+    val filteredModels = when (selectedModelType) {
+        ModelType.OFFLINE -> {
+            val models = if (selectedCategory == "All") {
+                availableToDownload
+            } else {
+                availableToDownload.filter { 
+                    it.family.contains(selectedCategory, ignoreCase = true) ||
+                    it.name.contains(selectedCategory, ignoreCase = true)
+                }
+            }
+            models.filter { 
+                it.name.contains(searchQuery, ignoreCase = true) || 
+                it.displayName.contains(searchQuery, ignoreCase = true)
+            }
+        }
+        ModelType.CLOUD -> {
+            val models = if (selectedCategory == "All") {
+                cloudModels
+            } else {
+                cloudModels.filter { 
+                    it.family.contains(selectedCategory, ignoreCase = true) ||
+                    it.name.contains(selectedCategory, ignoreCase = true)
+                }
+            }
+            models.filter { 
+                it.name.contains(searchQuery, ignoreCase = true) || 
+                it.displayName.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
         OutlinedTextField(
-            value = "",
-            onValueChange = onSearchQueryChange,
+            value = searchQuery,
+            onValueChange = { searchQuery = it; onSearchQueryChange(it) },
             placeholder = { Text("Search models...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
         )
 
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Model Type Selector
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selectedModelType == ModelType.OFFLINE,
+                onClick = { selectedModelType = ModelType.OFFLINE; selectedCategory = "All" },
+                label = { Text("Offline") },
+                leadingIcon = {
+                    if (selectedModelType == ModelType.OFFLINE) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+                selected = selectedModelType == ModelType.CLOUD,
+                onClick = { selectedModelType = ModelType.CLOUD; selectedCategory = "All" },
+                label = { Text("Cloud") },
+                leadingIcon = {
+                    if (selectedModelType == ModelType.CLOUD) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // Category Selector
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(categories) { category ->
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = { selectedCategory = category },
+                    label = { Text(category) }
+                )
+            }
+        }
+        
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(availableToDownload, key = { it.id }) { model ->
-                BrowseModelItem(
-                    model = model,
-                    isDownloading = downloadingModels.containsKey(model.id),
-                    downloadProgress = downloadingModels[model.id],
-                    onDownload = { onDownload(model) },
-                    onChat = { onChat(model.name) }
+            items(filteredModels, key = { it.id ?: it.name }) { model ->
+                when (selectedModelType) {
+                    ModelType.OFFLINE -> {
+                        val offlineModel = model as? OfflineModelInfo
+                        if (offlineModel != null) {
+                            BrowseModelItem(
+                                model = offlineModel,
+                                isDownloading = downloadingModels.containsKey(offlineModel.id),
+                                downloadProgress = downloadingModels[offlineModel.id],
+                                onDownload = { onDownload(offlineModel) },
+                                onChat = { onChat(offlineModel.name) }
+                            )
+                        }
+                    }
+                    ModelType.CLOUD -> {
+                        val cloudModel = model as? com.ollama.mobile.domain.model.OllamaModelInfo
+                        if (cloudModel != null) {
+                            CloudModelChip(
+                                model = cloudModel,
+                                onChat = { onChat(cloudModel.name) }
+                            )
+                        }
+                    }
+                }
+            }
+            
+            if (filteredModels.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.SearchOff,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No models found",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+enum class ModelType {
+    OFFLINE, CLOUD
+}
+
+@Composable
+private fun CloudModelChip(
+    model: com.ollama.mobile.domain.model.OllamaModelInfo,
+    onChat: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onChat
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(getFamilyColor(model.family)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    model.logo,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    model.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "${model.size} • ${model.family}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            
+            Icon(
+                Icons.Default.Chat,
+                contentDescription = "Chat",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

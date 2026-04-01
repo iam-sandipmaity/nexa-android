@@ -277,7 +277,9 @@ fun ChatScreen(
                     drawerState.value = false
                 },
                 onNewChat = {
-                    viewModel.initializeWithModel(uiState.selectedModel)
+                    viewModel.saveChatToHistory()
+                    viewModel.clearChat()
+                    viewModel.startNewChat(uiState.selectedModel)
                     drawerState.value = false
                 },
                 onSaveChat = {
