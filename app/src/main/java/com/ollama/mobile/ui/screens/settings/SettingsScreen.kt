@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.ollama.mobile.data.config.AppConfig
 
@@ -220,7 +221,7 @@ fun SettingsScreen(
                     subtitle = "Automatically download selected models",
                     onClick = { /* TODO: Toggle auto-download */ },
                     trailing = {
-                        Switch(checked = true, onClick = null)
+                        Switch(checked = true, onCheckedChange = null)
                     }
                 )
                 SettingsItem(
