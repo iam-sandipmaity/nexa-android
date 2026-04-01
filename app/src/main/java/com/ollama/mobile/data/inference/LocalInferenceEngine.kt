@@ -46,6 +46,13 @@ class LocalInferenceEngine {
             return@flow
         }
         
+        if (modelFile.length() < 1000000L) {
+            _state.value = InferenceState.Error("Model file too small (${modelFile.length()} bytes). Download may be incomplete.")
+            _isModelLoaded.value = false
+            emit(-1f)
+            return@flow
+        }
+        
         _state.value = InferenceState.Loading
         emit(0.1f)
         

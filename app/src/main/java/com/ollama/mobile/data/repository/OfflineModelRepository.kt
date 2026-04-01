@@ -207,8 +207,6 @@ class OfflineModelRepository {
             val request = Request.Builder()
                 .url(model.sourceUrl)
                 .header("Accept", "*/*")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .header("Accept-Encoding", "identity")
                 .build()
 
             val response = downloadClient.newCall(request).execute()
@@ -218,13 +216,6 @@ class OfflineModelRepository {
             }
 
             val body = response.body ?: throw IllegalStateException("Empty response body")
-            
-            // Check if we got an HTML page instead of the actual file
-            val contentType = response.header("Content-Type") ?: ""
-            if (contentType.contains("text/html", ignoreCase = true)) {
-                throw IllegalStateException("Download returned HTML instead of GGUF file. Make sure the URL points directly to a .gguf file (use /resolve/ not /blob/).")
-            }
-            
             val totalBytes = body.contentLength().takeIf { it > 0L } ?: model.sizeBytes
 
             emit(OfflineDownloadProgress(progress = 0f, status = "Downloading 0 / ${formatBytes(totalBytes)}"))
@@ -248,7 +239,6 @@ class OfflineModelRepository {
                             0f
                         }
 
-                        // Only emit progress updates every 500ms to avoid flooding the UI
                         val now = System.currentTimeMillis()
                         if (now - lastEmitTime > 500 || progress >= 1f) {
                             emit(
@@ -265,21 +255,17 @@ class OfflineModelRepository {
                 }
             }
 
+            // Save model registration BEFORE renaming (so crash recovery works)
+            saveDownloadedModel(model, tempFile)
+            
+            // Now rename temp to target
             if (targetFile.exists()) {
                 targetFile.delete()
             }
             tempFile.renameTo(targetFile)
             
-            // Verify the downloaded file is a valid GGUF file
-            if (!isValidGGUF(targetFile)) {
-                targetFile.delete()
-                throw IllegalStateException("Downloaded file is not a valid GGUF model. Please check the URL points to a .gguf file.")
-            }
-            
-            saveDownloadedModel(model, targetFile)
             emit(OfflineDownloadProgress(progress = 1f, status = "Download complete"))
         } catch (e: Exception) {
-            // Clean up partial download on failure
             tempFile.delete()
             emit(OfflineDownloadProgress(progress = 0f, status = "Failed: ${e.message}"))
             throw e
@@ -316,14 +302,6 @@ class OfflineModelRepository {
         sizeBytes >= 1_000_000_000 -> String.format("%.1fGB", sizeBytes / 1_000_000_000.0)
         sizeBytes >= 1_000_000 -> String.format("%.0fMB", sizeBytes / 1_000_000.0)
         else -> String.format("%dKB", sizeBytes / 1000)
-    }
-    
-    private fun isValidGGUF(file: File): Boolean {
-        return try {
-            file.length() > 1000 && file.readBytes().sliceArray(0..3).contentEquals(byteArrayOf(0x47.toByte(), 0x47.toByte(), 0x55.toByte(), 0x46.toByte()))
-        } catch (e: Exception) {
-            false
-        }
     }
 
     companion object {

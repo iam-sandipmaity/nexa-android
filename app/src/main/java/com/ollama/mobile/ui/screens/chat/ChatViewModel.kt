@@ -151,11 +151,6 @@ class ChatViewModel(
     private fun loadOfflineModel(modelName: String) {
         viewModelScope.launch {
             try {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = true,
-                    error = "Loading offline model..."
-                )
-                
                 val modelId = modelName.removePrefix("offline:")
                 val downloadedModels = offlineRepository.getDownloadedModels()
                 val model = downloadedModels.firstOrNull { it.id == modelId }
@@ -167,6 +162,20 @@ class ChatViewModel(
                     )
                     return@launch
                 }
+                
+                val modelFile = java.io.File(model.localPath)
+                if (!modelFile.exists()) {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "Model file not found at: ${model.localPath}"
+                    )
+                    return@launch
+                }
+                
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    error = "Loading ${model.displayName}..."
+                )
                 
                 inferenceEngine = LocalInferenceEngine()
                 
