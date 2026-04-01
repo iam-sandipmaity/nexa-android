@@ -237,7 +237,7 @@ fun SettingsScreen(
                     onClick = { showThemeDialog = true }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.TextFields,
@@ -263,7 +263,7 @@ fun SettingsScreen(
                     onCheckedChange = { /* TODO: Toggle auto-download */ }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.Folder,
@@ -272,7 +272,7 @@ fun SettingsScreen(
                     onClick = { /* TODO: Storage settings */ }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.Speed,
@@ -307,7 +307,7 @@ fun SettingsScreen(
                     }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.DeleteForever,
@@ -333,7 +333,7 @@ fun SettingsScreen(
                     onClick = { showAboutDialog = true }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.Description,
@@ -342,7 +342,7 @@ fun SettingsScreen(
                     onClick = { /* TODO: Show licenses */ }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.BugReport,
@@ -351,7 +351,7 @@ fun SettingsScreen(
                     onClick = { /* TODO: Bug reporting */ }
                 )
                 
-                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                Divider(modifier = Modifier.padding(horizontal = 16.dp))
                 
                 SettingsClickableItem(
                     icon = Icons.Default.Star,
