@@ -1,11 +1,17 @@
 package com.ollama.mobile.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ollama.mobile.CrashLogger
 import com.ollama.mobile.ui.screens.chat.ChatScreen
 import com.ollama.mobile.ui.screens.model.ModelBrowserScreen
 import com.ollama.mobile.ui.screens.settings.SettingsScreen
@@ -19,39 +25,66 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun OllamaApp(
-    onError: (String) -> Unit = {}
-) {
+fun OllamaApp() {
+    CrashLogger.log("OllamaApp composable started")
+    
+    var hasError by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf("") }
+    
     val navController = rememberNavController()
     
-    NavHost(
-        navController = navController,
-        startDestination = Screen.Models.route
-    ) {
-        composable(Screen.Models.route) {
-            ModelBrowserScreen(
-                onNavigateToChat = { modelName ->
-                    navController.navigate(Screen.Chat.createRoute(modelName))
-                }
-            )
+    LaunchedEffect(Unit) {
+        CrashLogger.log("NavController initialized")
+    }
+    
+    try {
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Models.route
+        ) {
+            composable(Screen.Models.route) {
+                CrashLogger.log("Showing Models screen")
+                ModelBrowserScreen(
+                    onNavigateToChat = { modelName ->
+                        CrashLogger.log("Navigating to chat with model: $modelName")
+                        navController.navigate(Screen.Chat.createRoute(modelName))
+                    }
+                )
+            }
+            
+            composable(
+                route = Screen.Chat.route,
+                arguments = listOf(navArgument("modelName") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
+                CrashLogger.log("Showing Chat screen for model: $modelName")
+                ChatScreen(
+                    selectedModel = modelName,
+                    onNavigateBack = { 
+                        CrashLogger.log("Navigating back from chat")
+                        navController.popBackStack() 
+                    },
+                    onNavigateToSettings = { 
+                        CrashLogger.log("Navigating to settings")
+                        navController.navigate(Screen.Settings.route) 
+                    }
+                )
+            }
+            
+            composable(Screen.Settings.route) {
+                CrashLogger.log("Showing Settings screen")
+                SettingsScreen(
+                    onNavigateBack = { 
+                        CrashLogger.log("Navigating back from settings")
+                        navController.popBackStack() 
+                    }
+                )
+            }
         }
-        
-        composable(
-            route = Screen.Chat.route,
-            arguments = listOf(navArgument("modelName") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
-            ChatScreen(
-                selectedModel = modelName,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToSettings = { navController.navigate(Screen.Settings.route) }
-            )
-        }
-        
-        composable(Screen.Settings.route) {
-            SettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+        CrashLogger.log("OllamaApp composable completed")
+    } catch (e: Exception) {
+        CrashLogger.logException(e)
+        hasError = true
+        errorMsg = e.message ?: "Unknown error in OllamaApp"
     }
 }
