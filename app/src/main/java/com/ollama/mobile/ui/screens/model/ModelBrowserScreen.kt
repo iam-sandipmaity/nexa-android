@@ -24,7 +24,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -32,12 +35,15 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -61,6 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.OfflineModelInfo
 import com.ollama.mobile.domain.model.OllamaModelInfo
 
 @Composable
@@ -82,7 +90,7 @@ fun ModelBrowserScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ollama Cloud Models") },
+                title = { Text("Models") },
                 actions = {
                     IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -124,10 +132,55 @@ fun ModelBrowserScreen(
                 onFamilySelected = viewModel::selectFamily
             )
 
-            AvailableModelsSection(
-                models = viewModel.getFilteredModels(),
-                onModelClick = onNavigateToChat
-            )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                item {
+                    OfflineInfoCard()
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                if (viewModel.getFilteredDownloadedModels().isNotEmpty()) {
+                    item {
+                        SectionTitle("Downloaded Offline Models")
+                    }
+                    items(viewModel.getFilteredDownloadedModels()) { model ->
+                        DownloadedOfflineModelCard(
+                            model = model,
+                            onDelete = { viewModel.deleteOfflineModel(model.id) },
+                            onOpen = { onNavigateToChat("offline:${model.id}") }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
+                if (viewModel.getFilteredOfflineCatalog().isNotEmpty()) {
+                    item {
+                        SectionTitle("Offline Models To Download")
+                    }
+                    items(viewModel.getFilteredOfflineCatalog()) { model ->
+                        OfflineCatalogCard(
+                            model = model,
+                            progress = uiState.downloadingOfflineModels[model.id],
+                            status = uiState.offlineDownloadStatus[model.id],
+                            onDownload = { viewModel.downloadOfflineModel(model) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
+                item {
+                    SectionTitle("Cloud Models")
+                }
+                items(viewModel.getFilteredModels()) { model ->
+                    CloudModelCard(
+                        model = model,
+                        onClick = { onNavigateToChat(model.name) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
         }
 
         if (uiState.isLoading) {
@@ -179,6 +232,28 @@ private fun ConnectionBanner(
 }
 
 @Composable
+private fun OfflineInfoCard() {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Offline Downloads",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Offline model files are downloaded from Hugging Face into private app storage. They are saved on the phone for future local runtime support.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
+@Composable
 private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
@@ -190,7 +265,7 @@ private fun SearchField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier,
-        placeholder = { Text("Search cloud models...") },
+        placeholder = { Text("Search cloud and offline models...") },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -227,32 +302,126 @@ private fun FamilyFilterRow(
 }
 
 @Composable
-private fun AvailableModelsSection(
-    models: List<OllamaModelInfo>,
-    onModelClick: (String) -> Unit
-) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-        Text(
-            text = "Available Cloud Models",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
+}
 
-        LazyColumn {
-            items(models) { model ->
-                AvailableModelCard(
-                    model = model,
-                    onClick = { onModelClick(model.name) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+@Composable
+private fun DownloadedOfflineModelCard(
+    model: DownloadedOfflineModel,
+    onDelete: () -> Unit,
+    onOpen: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF2E7D32)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.White)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(model.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Stored on device - ${model.formattedSize}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = onOpen,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Chat, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Open")
+                }
+                OutlinedButton(
+                    onClick = onDelete,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun AvailableModelCard(
+private fun OfflineCatalogCard(
+    model: OfflineModelInfo,
+    progress: Float?,
+    status: String?,
+    onDownload: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            ModelHeader(
+                family = model.family,
+                title = model.displayName,
+                description = model.description
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+            MetaRow(size = model.size, memory = model.minRam)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Source: ${model.sourceLabel}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (progress != null) {
+                Text(
+                    text = status ?: "Downloading...",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp))
+                )
+            } else {
+                OutlinedButton(
+                    onClick = onDownload,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Download Offline")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudModelCard(
     model: OllamaModelInfo,
     onClick: () -> Unit
 ) {
@@ -262,88 +431,103 @@ private fun AvailableModelCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(getFamilyColor(model.family)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = model.family.firstOrNull()?.uppercase() ?: "?",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = model.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = model.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        maxLines = 2
-                    )
-                }
-            }
+            ModelHeader(
+                family = model.family,
+                title = model.displayName,
+                description = model.description
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Storage,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = model.size,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Memory,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = model.minRam,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-            }
-
+            MetaRow(size = model.size, memory = model.minRam)
             Spacer(modifier = Modifier.height(12.dp))
-
             Button(
                 onClick = onClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(Icons.Default.Chat, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Open Chat")
+                Text("Open Cloud Chat")
             }
+        }
+    }
+}
+
+@Composable
+private fun ModelHeader(
+    family: String,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(getFamilyColor(family)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = family.take(1).uppercase().ifBlank { "?" },
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetaRow(size: String, memory: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Storage,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = size,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Memory,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = memory,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
     }
 }

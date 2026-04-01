@@ -29,6 +29,10 @@ fun ChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val isOfflineModel = remember(uiState.selectedModel) { uiState.selectedModel.startsWith("offline:") }
+    val displayModelName = remember(uiState.selectedModel) {
+        uiState.selectedModel.removePrefix("offline:")
+    }
 
     LaunchedEffect(selectedModel) {
         if (selectedModel.isNotEmpty()) {
@@ -50,7 +54,7 @@ fun ChatScreen(
                         Text("Chat")
                         if (uiState.selectedModel.isNotEmpty()) {
                             Text(
-                                text = uiState.selectedModel,
+                                text = displayModelName,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
@@ -94,8 +98,10 @@ fun ChatScreen(
                     enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty(),
                     placeholder = if (uiState.selectedModel.isEmpty()) {
                         "Select a model first"
+                    } else if (uiState.selectedModel.startsWith("offline:")) {
+                        "Offline runtime integration is still pending"
                     } else {
-                        "Ask ${uiState.selectedModel}..."
+                        "Ask $displayModelName..."
                     }
                 )
             }
@@ -108,8 +114,9 @@ fun ChatScreen(
         ) {
             if (uiState.messages.isEmpty() && !uiState.isLoading) {
                 EmptyChatState(
-                    modelName = uiState.selectedModel,
+                    modelName = displayModelName,
                     isConnected = uiState.isConnected,
+                    isOfflineModel = isOfflineModel,
                     modifier = Modifier.align(Alignment.Center)
                 )
             } else {
@@ -153,6 +160,7 @@ fun ChatScreen(
 private fun EmptyChatState(
     modelName: String,
     isConnected: Boolean,
+    isOfflineModel: Boolean,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -167,6 +175,7 @@ private fun EmptyChatState(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = when {
+                isOfflineModel -> "This model is downloaded on-device. Local offline inference still needs to be integrated."
                 !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
                 modelName.isEmpty() -> "Select a model to start"
                 else -> "Send a message to begin with $modelName"

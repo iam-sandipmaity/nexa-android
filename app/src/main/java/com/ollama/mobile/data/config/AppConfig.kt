@@ -44,6 +44,11 @@ object AppConfig {
 
     fun hasApiKey(): Boolean = getApiKey().isNotBlank()
 
+    fun getAppContext(): Context {
+        ensureInitialized()
+        return appContext
+    }
+
     private fun seedFromBuildConfigIfNeeded() {
         val prefs = prefs()
         val hasSavedBaseUrl = !prefs.getString(KEY_BASE_URL, "").isNullOrBlank()

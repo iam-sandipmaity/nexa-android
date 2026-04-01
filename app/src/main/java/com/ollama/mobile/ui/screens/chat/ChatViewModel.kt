@@ -27,6 +27,13 @@ class ChatViewModel(
 
     fun initializeWithModel(modelName: String) {
         _uiState.value = _uiState.value.copy(selectedModel = modelName)
+        if (isOfflineModel(modelName)) {
+            _uiState.value = _uiState.value.copy(
+                isConnected = false,
+                error = "This model is downloaded on the device, but local offline inference is not integrated yet."
+            )
+            return
+        }
         checkConnection()
     }
 
@@ -64,6 +71,13 @@ class ChatViewModel(
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
+        if (isOfflineModel(_uiState.value.selectedModel)) {
+            _uiState.value = _uiState.value.copy(
+                error = "Offline model files are downloaded, but local inference still needs to be added.",
+                isConnected = false
+            )
+            return
+        }
         if (!repository.hasApiKey()) {
             _uiState.value = _uiState.value.copy(
                 error = "Add your Ollama API key in Settings before chatting.",
@@ -113,4 +127,6 @@ class ChatViewModel(
     fun clearChat() {
         _uiState.value = _uiState.value.copy(messages = emptyList())
     }
+
+    private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
 }

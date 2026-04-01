@@ -11,6 +11,39 @@ data class OllamaModelInfo(
     val minRam: String
 )
 
+data class OfflineModelInfo(
+    val id: String,
+    val name: String,
+    val displayName: String,
+    val description: String,
+    val size: String,
+    val sizeBytes: Long,
+    val family: String,
+    val minRam: String,
+    val sourceUrl: String,
+    val fileName: String,
+    val sourceLabel: String
+)
+
+data class DownloadedOfflineModel(
+    val id: String,
+    val name: String,
+    val displayName: String,
+    val fileName: String,
+    val localPath: String,
+    val sizeBytes: Long,
+    val downloadedAtMillis: Long,
+    val sourceUrl: String,
+    val sourceLabel: String
+) {
+    val formattedSize: String
+        get() = when {
+            sizeBytes >= 1_000_000_000 -> String.format("%.1fGB", sizeBytes / 1_000_000_000.0)
+            sizeBytes >= 1_000_000 -> String.format("%.0fMB", sizeBytes / 1_000_000.0)
+            else -> String.format("%dKB", sizeBytes / 1000)
+        }
+}
+
 data class LocalModel(
     val name: String,
     val size: Long,
