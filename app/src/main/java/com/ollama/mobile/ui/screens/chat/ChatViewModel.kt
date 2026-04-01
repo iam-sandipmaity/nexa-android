@@ -9,6 +9,8 @@ import com.ollama.mobile.data.repository.ModelRepository
 import com.ollama.mobile.data.repository.OfflineModelRepository
 import com.ollama.mobile.data.inference.LocalInferenceEngine
 import com.ollama.mobile.domain.model.ChatMessage
+import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.OllamaModelInfo
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,7 +29,9 @@ data class ChatUiState(
     val isOfflineModel: Boolean = false,
     val isModelLoaded: Boolean = false,
     val streamingResponse: String = "",
-    val chatId: String? = null
+    val chatId: String? = null,
+    val availableModels: List<OllamaModelInfo> = emptyList(),
+    val downloadedModels: List<DownloadedOfflineModel> = emptyList()
 )
 
 class ChatViewModel(
@@ -41,6 +45,29 @@ class ChatViewModel(
     
     private var inferenceEngine: LocalInferenceEngine? = null
     private var streamingJob: Job? = null
+
+    init {
+        loadAvailableModels()
+    }
+
+    private fun loadAvailableModels() {
+        viewModelScope.launch {
+            try {
+                val cloudModels = repository.getModels().getOrNull() ?: emptyList()
+                val downloadedModels = offlineRepository.getDownloadedModels()
+                _uiState.value = _uiState.value.copy(
+                    availableModels = cloudModels,
+                    downloadedModels = downloadedModels
+                )
+            } catch (e: Exception) {
+                // Ignore errors loading models
+            }
+        }
+    }
+
+    fun refreshModels() {
+        loadAvailableModels()
+    }
 
     fun initializeWithModel(modelName: String) {
         _uiState.value = _uiState.value.copy(

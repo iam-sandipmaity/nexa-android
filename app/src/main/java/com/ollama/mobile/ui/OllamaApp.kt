@@ -15,9 +15,18 @@ import com.ollama.mobile.ui.screens.settings.SettingsScreen
 
 sealed class Screen(val route: String) {
     object Models : Screen("models")
-    object Chat : Screen("chat/{modelName}?chatId={chatId}") {
-        fun createRoute(modelName: String, chatId: String? = null) = 
-            if (chatId != null) "chat/$modelName?chatId=$chatId" else "chat/$modelName"
+    object Chat : Screen("chat?modelName={modelName}&chatId={chatId}") {
+        fun createRoute(modelName: String? = null, chatId: String? = null): String {
+            return buildString {
+                append("chat")
+                val params = mutableListOf<String>()
+                if (modelName != null) params.add("modelName=$modelName")
+                if (chatId != null) params.add("chatId=$chatId")
+                if (params.isNotEmpty()) {
+                    append("?${params.joinToString("&")}")
+                }
+            }
+        }
     }
     object History : Screen("history")
     object Settings : Screen("settings")
@@ -35,7 +44,7 @@ fun OllamaApp() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Models.route
+        startDestination = Screen.Chat.route
     ) {
         composable(Screen.Models.route) {
             CrashLogger.log("Showing Models screen")
@@ -51,6 +60,10 @@ fun OllamaApp() {
                 onNavigateToHistory = {
                     CrashLogger.log("Navigating to history")
                     navController.navigate(Screen.History.route)
+                },
+                onNavigateBack = {
+                    CrashLogger.log("Navigating back from models")
+                    navController.popBackStack()
                 }
             )
         }
@@ -58,7 +71,11 @@ fun OllamaApp() {
         composable(
             route = Screen.Chat.route,
             arguments = listOf(
-                navArgument("modelName") { type = NavType.StringType },
+                navArgument("modelName") { 
+                    type = NavType.StringType 
+                    nullable = true
+                    defaultValue = null 
+                },
                 navArgument("chatId") { 
                     type = NavType.StringType 
                     nullable = true
@@ -66,11 +83,11 @@ fun OllamaApp() {
                 }
             )
         ) { backStackEntry ->
-            val modelName = backStackEntry.arguments?.getString("modelName") ?: ""
+            val modelName = backStackEntry.arguments?.getString("modelName")
             val chatId = backStackEntry.arguments?.getString("chatId")
             CrashLogger.log("Showing Chat screen for model: $modelName, chatId: $chatId")
             ChatScreen(
-                selectedModel = modelName,
+                selectedModel = modelName ?: "",
                 existingChatId = chatId,
                 onNavigateBack = {
                     CrashLogger.log("Navigating back from chat")
@@ -83,6 +100,10 @@ fun OllamaApp() {
                 onNavigateToHistory = {
                     CrashLogger.log("Navigating to history from chat")
                     navController.navigate(Screen.History.route)
+                },
+                onNavigateToModels = {
+                    CrashLogger.log("Navigating to models from chat")
+                    navController.navigate(Screen.Models.route)
                 }
             )
         }
