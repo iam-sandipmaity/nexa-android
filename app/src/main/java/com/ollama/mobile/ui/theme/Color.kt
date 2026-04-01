@@ -18,7 +18,13 @@ val SurfaceLight = Color(0xFFFFFBFE)
 val OnSurfaceDark = Color(0xFFE6E1E5)
 val OnSurfaceLight = Color(0xFF1C1B1F)
 
-val UserBubble = Color(0xFF6750A4)
-val AssistantBubble = Color(0xFF2D2D2D)
-val UserBubbleLight = Color(0xFFE8DEF8)
-val AssistantBubbleLight = Color(0xFFE7E0EC)
+// Chat bubble colors - improved for better readability
+val UserBubble = Color(0xFF4A6EE0)  // More pleasant blue
+val AssistantBubble = Color(0xFF262626)  // Dark gray, not too dark
+val UserBubbleLight = Color(0xFFE3ECFF)  // Light blue-gray
+val AssistantBubbleLight = Color(0xFFF5F5F5)  // Light gray
+
+// Accent colors
+val SuccessGreen = Color(0xFF4CAF50)
+val ErrorRed = Color(0xFFE53935)
+val WarningOrange = Color(0xFFFF9800)

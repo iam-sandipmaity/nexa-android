@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ollama.mobile.ui.components.ChatBubble
@@ -167,21 +168,38 @@ private fun EmptyChatState(
         modifier = modifier.padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = if (isConnected) "Start Chatting" else "Connection Error",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = when {
-                isOfflineModel -> "This model is downloaded on-device. Local offline inference still needs to be integrated."
-                !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
-                modelName.isEmpty() -> "Select a model to start"
-                else -> "Send a message to begin with $modelName"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = when {
+                        isOfflineModel -> "Offline Model Ready"
+                        isConnected -> "Ready to Chat"
+                        else -> "Connection Issue"
+                    },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = when {
+                        isOfflineModel -> "This model is downloaded on-device.\nLocal offline inference still needs to be integrated."
+                        !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
+                        modelName.isEmpty() -> "Select a model to start"
+                        else -> "Send a message to begin with\n$modelName"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        }
     }
 }

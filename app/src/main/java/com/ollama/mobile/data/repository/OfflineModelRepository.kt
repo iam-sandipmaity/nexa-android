@@ -5,8 +5,10 @@ import com.google.gson.reflect.TypeToken
 import com.ollama.mobile.data.config.AppConfig
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
 import com.ollama.mobile.domain.model.OfflineModelInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -106,23 +108,31 @@ class OfflineModelRepository {
             return@flow
         }
 
-        val request = Request.Builder()
-            .url(model.sourceUrl)
-            .header("Accept", "*/*")
-            .build()
+        try {
+            emit(OfflineDownloadProgress(progress = 0f, status = "Connecting to ${model.sourceLabel}..."))
+            
+            val request = Request.Builder()
+                .url(model.sourceUrl)
+                .header("Accept", "*/*")
+                .header("User-Agent", "Mozilla/5.0 (Android; Mobile) OllamaMobile/1.0")
+                .build()
 
-        downloadClient.newCall(request).execute().use { response ->
+            val response = downloadClient.newCall(request).execute()
+            
             if (!response.isSuccessful) {
-                throw IllegalStateException("Download failed with code ${response.code}")
+                throw IllegalStateException("Download failed with HTTP ${response.code}: ${response.message}")
             }
 
-            val body = response.body ?: throw IllegalStateException("Empty download response")
+            val body = response.body ?: throw IllegalStateException("Empty response body")
             val totalBytes = body.contentLength().takeIf { it > 0L } ?: model.sizeBytes
+
+            emit(OfflineDownloadProgress(progress = 0f, status = "Downloading 0 / ${formatBytes(totalBytes)}"))
 
             body.byteStream().use { input ->
                 FileOutputStream(tempFile).use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     var downloadedBytes = 0L
+                    var lastEmitTime = System.currentTimeMillis()
 
                     while (true) {
                         val read = input.read(buffer)
@@ -137,26 +147,36 @@ class OfflineModelRepository {
                             0f
                         }
 
-                        emit(
-                            OfflineDownloadProgress(
-                                progress = progress.coerceIn(0f, 1f),
-                                status = "Downloading ${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}"
+                        // Only emit progress updates every 500ms to avoid flooding the UI
+                        val now = System.currentTimeMillis()
+                        if (now - lastEmitTime > 500 || progress >= 1f) {
+                            emit(
+                                OfflineDownloadProgress(
+                                    progress = progress.coerceIn(0f, 1f),
+                                    status = "Downloading ${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}"
+                                )
                             )
-                        )
+                            lastEmitTime = now
+                        }
                     }
 
                     output.flush()
                 }
             }
-        }
 
-        if (targetFile.exists()) {
-            targetFile.delete()
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+            tempFile.renameTo(targetFile)
+            saveDownloadedModel(model, targetFile)
+            emit(OfflineDownloadProgress(progress = 1f, status = "Download complete"))
+        } catch (e: Exception) {
+            // Clean up partial download on failure
+            tempFile.delete()
+            emit(OfflineDownloadProgress(progress = 0f, status = "Failed: ${e.message}"))
+            throw e
         }
-        tempFile.renameTo(targetFile)
-        saveDownloadedModel(model, targetFile)
-        emit(OfflineDownloadProgress(progress = 1f, status = "Download complete"))
-    }
+    }.flowOn(Dispatchers.IO)
 
     fun deleteDownloadedModel(modelId: String) {
         val model = getDownloadedModels().firstOrNull { it.id == modelId } ?: return
