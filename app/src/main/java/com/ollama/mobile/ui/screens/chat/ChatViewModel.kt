@@ -6,9 +6,11 @@ import com.ollama.mobile.data.repository.ModelRepository
 import com.ollama.mobile.data.repository.OfflineModelRepository
 import com.ollama.mobile.data.inference.LocalInferenceEngine
 import com.ollama.mobile.domain.model.ChatMessage
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class ChatUiState(
@@ -19,7 +21,8 @@ data class ChatUiState(
     val selectedModel: String = "",
     val isConnected: Boolean = true,
     val isOfflineModel: Boolean = false,
-    val isModelLoaded: Boolean = false
+    val isModelLoaded: Boolean = false,
+    val streamingResponse: String = ""
 )
 
 class ChatViewModel(
@@ -31,6 +34,7 @@ class ChatViewModel(
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
     private var inferenceEngine: LocalInferenceEngine? = null
+    private var streamingJob: Job? = null
 
     fun initializeWithModel(modelName: String) {
         _uiState.value = _uiState.value.copy(selectedModel = modelName)
@@ -41,7 +45,6 @@ class ChatViewModel(
                 isConnected = false,
                 error = null
             )
-            // Try to load the model for local inference
             loadOfflineModel(modelName)
             return
         }
@@ -56,7 +59,6 @@ class ChatViewModel(
                     error = "Loading offline model..."
                 )
                 
-                // Get the downloaded model info
                 val modelId = modelName.removePrefix("offline:")
                 val downloadedModels = offlineRepository.getDownloadedModels()
                 val model = downloadedModels.firstOrNull { it.id == modelId }
@@ -69,23 +71,21 @@ class ChatViewModel(
                     return@launch
                 }
                 
-                // Initialize inference engine
                 inferenceEngine = LocalInferenceEngine()
                 
-                // Load the model
-                val success = inferenceEngine!!.loadModel(model.localPath)
-                
-                if (success) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        isModelLoaded = true,
-                        error = null
-                    )
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "Failed to load model"
-                    )
+                inferenceEngine!!.loadModel(model.localPath).collect { progress ->
+                    if (progress < 0) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            error = "Failed to load model"
+                        )
+                    } else if (progress >= 1f) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            isModelLoaded = true,
+                            error = null
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -131,7 +131,6 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
         
-        // Handle offline model inference
         if (isOfflineModel(_uiState.value.selectedModel)) {
             if (!_uiState.value.isModelLoaded) {
                 _uiState.value = _uiState.value.copy(
@@ -147,27 +146,39 @@ class ChatViewModel(
                 messages = newMessages,
                 inputText = "",
                 isLoading = true,
+                streamingResponse = "",
                 error = null
             )
             
-            viewModelScope.launch {
+            // Start streaming response
+            streamingJob?.cancel()
+            streamingJob = viewModelScope.launch {
                 try {
-                    // Get response from local inference
-                    val response = inferenceEngine?.chat(newMessages) 
-                        ?: "Error: Inference engine not available"
+                    val responseBuilder = StringBuilder()
                     
+                    inferenceEngine?.chat(newMessages)?.collect { token ->
+                        responseBuilder.append(token)
+                        _uiState.value = _uiState.value.copy(
+                            streamingResponse = responseBuilder.toString()
+                        )
+                    }
+                    
+                    // Done streaming
+                    val fullResponse = responseBuilder.toString()
                     val assistantMessage = ChatMessage(
                         role = "assistant",
-                        content = response
+                        content = fullResponse
                     )
                     
                     _uiState.value = _uiState.value.copy(
                         messages = _uiState.value.messages + assistantMessage,
-                        isLoading = false
+                        isLoading = false,
+                        streamingResponse = ""
                     )
                 } catch (e: Exception) {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
+                        streamingResponse = "",
                         error = "Inference error: ${e.message}"
                     )
                 }
@@ -175,7 +186,6 @@ class ChatViewModel(
             return
         }
         
-        // Cloud model inference
         if (!repository.hasApiKey()) {
             _uiState.value = _uiState.value.copy(
                 error = "Add your Ollama API key in Settings before chatting.",
@@ -218,6 +228,15 @@ class ChatViewModel(
         }
     }
 
+    fun stopGeneration() {
+        streamingJob?.cancel()
+        inferenceEngine?.stop()
+        _uiState.value = _uiState.value.copy(
+            isLoading = false,
+            streamingResponse = ""
+        )
+    }
+
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
@@ -228,6 +247,7 @@ class ChatViewModel(
     
     override fun onCleared() {
         super.onCleared()
+        streamingJob?.cancel()
         inferenceEngine?.free()
     }
 

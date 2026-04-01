@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.ui.components.ChatBubble
 import com.ollama.mobile.ui.components.LoadingIndicator
 import com.ollama.mobile.ui.components.MessageInput
@@ -76,8 +78,14 @@ fun ChatScreen(
                             Icon(Icons.Filled.Delete, contentDescription = "Clear chat")
                         }
                     }
-                    IconButton(onClick = { viewModel.initializeWithModel(uiState.selectedModel) }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                    if (uiState.isLoading && isOfflineModel) {
+                        IconButton(onClick = viewModel::stopGeneration) {
+                            Icon(Icons.Filled.Stop, contentDescription = "Stop generation")
+                        }
+                    } else {
+                        IconButton(onClick = { viewModel.initializeWithModel(uiState.selectedModel) }) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                        }
                     }
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Settings")
@@ -129,6 +137,13 @@ fun ChatScreen(
                 ) {
                     items(uiState.messages) { message ->
                         ChatBubble(message = message)
+                    }
+                    
+                    // Show streaming response for offline models
+                    if (uiState.streamingResponse.isNotEmpty()) {
+                        item {
+                            ChatBubble(message = ChatMessage(role = "assistant", content = uiState.streamingResponse))
+                        }
                     }
                     
                     if (uiState.isLoading) {
