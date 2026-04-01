@@ -57,6 +57,10 @@ fun OllamaApp() {
                     CrashLogger.log("Navigating to settings")
                     navController.navigate(Screen.Settings.route)
                 },
+                onNavigateToHistory = {
+                    CrashLogger.log("Navigating to history")
+                    navController.navigate(Screen.History.route)
+                },
                 onNavigateBack = {
                     CrashLogger.log("Navigating back from models")
                     navController.popBackStack()

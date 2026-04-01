@@ -50,7 +50,7 @@ import com.ollama.mobile.domain.model.OllamaModelInfo
 fun ModelBrowserScreen(
     onNavigateToChat: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToHistory: () -> Unit,
+    onNavigateToHistory: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     viewModel: ModelBrowserViewModel = viewModel()
 ) {
@@ -114,7 +114,7 @@ fun ModelBrowserScreen(
 
             when (selectedTab) {
                 0 -> DownloadedModelsTab(
-                    downloadedModels = uiState.downloadedModels,
+                    downloadedModels = uiState.downloadedOfflineModels,
                     onDelete = viewModel::deleteOfflineModel,
                     onChat = { model -> onNavigateToChat("offline:${model.id}") }
                 )
