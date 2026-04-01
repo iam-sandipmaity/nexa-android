@@ -330,6 +330,8 @@ private fun DownloadedOfflineModelCard(
     onDelete: () -> Unit,
     onOpen: () -> Unit
 ) {
+    val modelColor = getFamilyColor(model.family)
+    
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -340,10 +342,15 @@ private fun DownloadedOfflineModelCard(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF2E7D32)),
+                        .background(modelColor),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.White)
+                    Icon(
+                        imageVector = model.logo,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {

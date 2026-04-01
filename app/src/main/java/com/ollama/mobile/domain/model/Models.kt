@@ -65,6 +65,26 @@ data class DownloadedOfflineModel(
             sizeBytes >= 1_000_000 -> String.format("%.0fMB", sizeBytes / 1_000_000.0)
             else -> String.format("%dKB", sizeBytes / 1000)
         }
+    
+    val family: String
+        get() = extractFamily(name)
+    
+    val logo: ImageVector
+        get() = familyLogos[family.lowercase()] ?: Icons.Default.CloudDownload
+    
+    private fun extractFamily(modelName: String): String {
+        val lower = modelName.lowercase()
+        return when {
+            lower.contains("llama") -> "llama"
+            lower.contains("gemma") -> "gemma"
+            lower.contains("mistral") || lower.contains("mixtral") -> "mistral"
+            lower.contains("qwen") -> "qwen"
+            lower.contains("phi") -> "phi"
+            lower.contains("codellama") || lower.contains("code") -> "codellama"
+            lower.contains("deepseek") -> "deepseek"
+            else -> "default"
+        }
+    }
 }
 
 data class LocalModel(
