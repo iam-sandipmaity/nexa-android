@@ -8,6 +8,7 @@ on:
 
 env:
   JAVA_VERSION: '17'
+  ANDROID_NDK_VERSION: '26.1.10909125'
 
 jobs:
   build-release:
@@ -23,6 +24,14 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;$ANDROID_NDK_VERSION" || true
+          ls -la $ANDROID_HOME/ndk/
 
       - name: Create debug keystore
         run: |
