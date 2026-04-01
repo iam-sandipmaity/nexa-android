@@ -828,15 +828,26 @@ private fun BrowseModelsTab(
             ImportModelDialog(
                 onDismiss = { showImportDialog = false },
                 onImport = { name, url ->
-                    // Convert Hugging Face blob URLs to resolve URLs for direct download
-                    val downloadUrl = when {
-                        url.contains("/blob/") -> {
-                            url.replace("/blob/", "/resolve/") + if (url.contains("?")) "&download=true" else "?download=true"
+                    // Convert Hugging Face URLs to direct download URLs
+                    var downloadUrl = url.trim()
+                    
+                    // Handle different Hugging Face URL formats
+                    when {
+                        // Convert /blob/ URLs to direct download
+                        // Input: https://huggingface.co/user/repo/blob/main/file.gguf
+                        // Output: https://huggingface.co/user/repo/resolve/main/file.gguf
+                        downloadUrl.contains("/blob/") -> {
+                            downloadUrl = downloadUrl.replace("/blob/", "/resolve/")
                         }
-                        !url.contains("?download") -> {
-                            url + if (url.contains("?")) "&download=true" else "?download=true"
+                    }
+                    
+                    // Ensure download parameter is present
+                    if (!downloadUrl.contains("download=true", ignoreCase = true)) {
+                        downloadUrl = if (downloadUrl.contains("?")) {
+                            "$downloadUrl&download=true"
+                        } else {
+                            "$downloadUrl?download=true"
                         }
-                        else -> url
                     }
                     
                     val fileName = downloadUrl.substringAfterLast("/").split("?").first()
@@ -1095,15 +1106,18 @@ private fun ImportModelDialog(
                     value = modelUrl,
                     onValueChange = { 
                         modelUrl = it
-                        urlError = if (it.isNotBlank() && !it.contains("huggingface.co", ignoreCase = true) && !it.endsWith(".gguf", ignoreCase = true)) {
-                            "URL should be a Hugging Face GGUF link"
-                        } else null
+                        urlError = when {
+                            it.isBlank() -> null
+                            !it.contains("huggingface.co", ignoreCase = true) -> "URL must be from huggingface.co"
+                            !it.endsWith(".gguf", ignoreCase = true) && !it.contains(".gguf?", ignoreCase = true) -> "URL must point to a .gguf file"
+                            else -> null
+                        }
                     },
                     label = { Text("Hugging Face URL") },
-                    placeholder = { Text("https://huggingface.co/...file.gguf") },
+                    placeholder = { Text("https://huggingface.co/.../model.gguf") },
                     singleLine = true,
                     isError = urlError != null,
-                    supportingText = { urlError?.let { Text(it) } },
+                    supportingText = { urlError?.let { Text(it, color = MaterialTheme.colorScheme.error) } },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -1111,7 +1125,7 @@ private fun ImportModelDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    "Example: https://huggingface.co/user/model/resolve/main/model.gguf",
+                    "Tip: Both /blob/ and /resolve/ URLs work. The app will convert blob URLs automatically.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
