@@ -1,5 +1,7 @@
 package com.ollama.mobile.ui.screens.chat
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,36 +18,47 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ollama.mobile.data.config.AppConfig
+import com.ollama.mobile.data.repository.ChatHistoryRepository
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
 import com.ollama.mobile.domain.model.OllamaModelInfo
 import com.ollama.mobile.ui.components.ChatBubble
 import com.ollama.mobile.ui.components.LoadingIndicator
-import com.ollama.mobile.ui.components.MessageInput
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     selectedModel: String = "",
     existingChatId: String? = null,
-    onNavigateBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
-    onNavigateToHistory: () -> Unit = {},
     onNavigateToModels: () -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
-    val isOfflineModel = remember(uiState.selectedModel) { uiState.selectedModel.startsWith("offline:") }
-    val displayModelName = remember(uiState.selectedModel) {
-        uiState.selectedModel.removePrefix("offline:")
-    }
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     
     var showModelSelector by remember { mutableStateOf(false) }
+    var showModelDropdown by remember { mutableStateOf(false) }
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var apiKeyInput by remember { mutableStateOf("") }
     var modelSearchQuery by remember { mutableStateOf("") }
+    var inputText by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        val hasApiKey = AppConfig.hasApiKey()
+        if (!hasApiKey) {
+            showApiKeyDialog = true
+        }
+    }
 
     LaunchedEffect(selectedModel, existingChatId) {
         if (selectedModel.isNotEmpty()) {
@@ -55,6 +70,23 @@ fun ChatScreen(
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(uiState.messages.size - 1)
         }
+    }
+
+    if (showApiKeyDialog) {
+        ApiKeySetupDialog(
+            apiKey = apiKeyInput,
+            onApiKeyChange = { apiKeyInput = it },
+            onSave = {
+                if (apiKeyInput.isNotBlank()) {
+                    AppConfig.updateApiKey(apiKeyInput.trim())
+                    AppConfig.updateBaseUrl("https://ollama.com/")
+                }
+                showApiKeyDialog = false
+            },
+            onSkip = {
+                showApiKeyDialog = false
+            }
+        )
     }
 
     if (showModelSelector) {
@@ -81,53 +113,32 @@ fun ChatScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column(
+                    Row(
                         modifier = Modifier.clickable { showModelSelector = true },
-                        horizontalAlignment = Alignment.Start
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Chat", fontWeight = FontWeight.Bold)
-                            if (uiState.selectedModel.isNotEmpty()) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = "Select Model",
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
+                        Text("Chat", fontWeight = FontWeight.Bold)
                         if (uiState.selectedModel.isNotEmpty()) {
-                            Text(
-                                text = displayModelName,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                        } else {
-                            Text(
-                                text = "Select a model",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                    IconButton(onClick = { showModelSelector = true }) {
+                        Icon(Icons.Default.Menu, contentDescription = "History")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showModelSelector = true }) {
-                        Icon(Icons.Filled.ModelTraining, contentDescription = "Select Model")
-                    }
-                    IconButton(onClick = onNavigateToHistory) {
-                        Icon(Icons.Filled.History, contentDescription = "Chat History")
+                    IconButton(onClick = onNavigateToModels) {
+                        Icon(Icons.Default.Storage, contentDescription = "Models")
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -150,7 +161,7 @@ fun ChatScreen(
                 if (uiState.error != null && !uiState.isLoading) {
                     ErrorBanner(
                         error = uiState.error!!,
-                        onRetry = viewModel::clearError
+                        onDismiss = viewModel::clearError
                     )
                 }
 
@@ -183,13 +194,287 @@ fun ChatScreen(
                     }
                 }
 
-                MessageInput(
-                    value = uiState.inputText,
-                    onValueChange = viewModel::updateInputText,
-                    onSend = viewModel::sendMessage,
-                    enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty()
+                MessageInputArea(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    onSend = {
+                        if (inputText.isNotBlank()) {
+                            viewModel.updateInputText(inputText)
+                            viewModel.sendMessage()
+                            inputText = ""
+                        }
+                    },
+                    enabled = !uiState.isLoading,
+                    showModelDropdown = showModelDropdown,
+                    onToggleModelDropdown = { showModelDropdown = !showModelDropdown },
+                    selectedModel = uiState.selectedModel.removePrefix("offline:"),
+                    onModelSelected = { modelName ->
+                        viewModel.initializeWithModel(modelName)
+                        showModelDropdown = false
+                    },
+                    availableModels = uiState.availableModels,
+                    downloadedModels = uiState.downloadedModels,
+                    currentModel = uiState.selectedModel
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ApiKeySetupDialog(
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onSkip: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.95f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = onSkip) {
+                        Icon(Icons.Default.Close, contentDescription = "Skip")
+                    }
+                }
+                
+                Icon(
+                    Icons.Default.Key,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    "Connect to Ollama Cloud",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    "Enter your API key to start chatting with cloud models.\nYou can also use offline models without an API key.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = onApiKeyChange,
+                    label = { Text("API Key") },
+                    placeholder = { Text("Paste your Ollama API key") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) }
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onSkip,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Skip")
+                    }
+                    
+                    Button(
+                        onClick = onSave,
+                        enabled = apiKey.isNotBlank(),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Connect")
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                TextButton(
+                    onClick = { /* Open browser */ }
+                ) {
+                    Text("Get API Key from Ollama")
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MessageInputArea(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit,
+    enabled: Boolean,
+    showModelDropdown: Boolean,
+    onToggleModelDropdown: () -> Unit,
+    selectedModel: String,
+    onModelSelected: (String) -> Unit,
+    availableModels: List<OllamaModelInfo>,
+    downloadedModels: List<DownloadedOfflineModel>,
+    currentModel: String
+) {
+    val focusManager = LocalFocusManager.current
+    
+    Column {
+        if (showModelDropdown) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                tonalElevation = 2.dp
+            ) {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 200.dp),
+                    contentPadding = PaddingValues(8.dp)
+                ) {
+                    if (downloadedModels.isNotEmpty()) {
+                        items(downloadedModels) { model ->
+                            DropdownModelItem(
+                                name = model.displayName,
+                                subtitle = "Offline",
+                                isSelected = currentModel == "offline:${model.id}",
+                                onClick = { onModelSelected("offline:${model.id}") }
+                            )
+                        }
+                    }
+                    
+                    if (availableModels.isNotEmpty()) {
+                        items(availableModels.take(8)) { model ->
+                            DropdownModelItem(
+                                name = model.displayName,
+                                subtitle = model.size,
+                                isSelected = currentModel == model.name,
+                                onClick = { onModelSelected(model.name) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 3.dp,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Message...") },
+                    enabled = enabled,
+                    maxLines = 4,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            focusManager.clearFocus()
+                            onSend()
+                        }
+                    )
+                )
+                
+                Spacer(modifier = Modifier.width(8.dp))
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = onToggleModelDropdown,
+                        enabled = enabled
+                    ) {
+                        Icon(
+                            Icons.Default.ModelTraining,
+                            contentDescription = "Select Model",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    
+                    IconButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            onSend()
+                        },
+                        enabled = enabled && value.isNotBlank()
+                    ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Send",
+                            tint = if (enabled && value.isNotBlank()) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DropdownModelItem(
+    name: String,
+    subtitle: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer 
+                else MaterialTheme.colorScheme.surface
+            )
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+        
+        if (isSelected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -256,7 +541,7 @@ private fun EmptyStateSection(
 @Composable
 private fun ErrorBanner(
     error: String,
-    onRetry: () -> Unit
+    onDismiss: () -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.errorContainer,
@@ -277,7 +562,7 @@ private fun ErrorBanner(
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onRetry) {
+            TextButton(onClick = onDismiss) {
                 Text("Dismiss")
             }
         }
@@ -308,9 +593,7 @@ private fun ModelSelectorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { 
-            Text("Select Model", fontWeight = FontWeight.Bold) 
-        },
+        title = { Text("Select Model", fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 OutlinedTextField(
@@ -323,18 +606,6 @@ private fun ModelSelectorDialog(
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                if (searchQuery.isEmpty()) {
-                    if (downloadedModels.isNotEmpty()) {
-                        Text(
-                            text = "Downloaded Models",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                }
                 
                 LazyColumn(
                     modifier = Modifier.heightIn(max = 300.dp)

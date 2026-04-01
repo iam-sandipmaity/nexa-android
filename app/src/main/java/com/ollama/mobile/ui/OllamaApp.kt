@@ -89,17 +89,9 @@ fun OllamaApp() {
             ChatScreen(
                 selectedModel = modelName ?: "",
                 existingChatId = chatId,
-                onNavigateBack = {
-                    CrashLogger.log("Navigating back from chat")
-                    navController.popBackStack()
-                },
                 onNavigateToSettings = {
                     CrashLogger.log("Navigating to settings")
                     navController.navigate(Screen.Settings.route)
-                },
-                onNavigateToHistory = {
-                    CrashLogger.log("Navigating to history from chat")
-                    navController.navigate(Screen.History.route)
                 },
                 onNavigateToModels = {
                     CrashLogger.log("Navigating to models from chat")

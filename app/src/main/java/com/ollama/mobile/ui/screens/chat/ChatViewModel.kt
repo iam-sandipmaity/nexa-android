@@ -31,7 +31,8 @@ data class ChatUiState(
     val streamingResponse: String = "",
     val chatId: String? = null,
     val availableModels: List<OllamaModelInfo> = emptyList(),
-    val downloadedModels: List<DownloadedOfflineModel> = emptyList()
+    val downloadedModels: List<DownloadedOfflineModel> = emptyList(),
+    val chatHistory: List<ChatHistoryRepository.ChatHistoryEntry> = emptyList()
 )
 
 class ChatViewModel(
@@ -55,12 +56,26 @@ class ChatViewModel(
             try {
                 val cloudModels = repository.getAvailableModels().getOrNull() ?: emptyList()
                 val downloadedModels = offlineRepository.getDownloadedModels()
+                val history = chatHistoryRepository.getAllHistory().first()
                 _uiState.value = _uiState.value.copy(
                     availableModels = cloudModels,
-                    downloadedModels = downloadedModels
+                    downloadedModels = downloadedModels,
+                    chatHistory = history
                 )
             } catch (e: Exception) {
                 // Ignore errors loading models
+            }
+        }
+    }
+
+    fun deleteChat(chatId: String) {
+        viewModelScope.launch {
+            try {
+                chatHistoryRepository.deleteChat(chatId)
+                val history = chatHistoryRepository.getAllHistory().first()
+                _uiState.value = _uiState.value.copy(chatHistory = history)
+            } catch (e: Exception) {
+                // Ignore errors
             }
         }
     }
