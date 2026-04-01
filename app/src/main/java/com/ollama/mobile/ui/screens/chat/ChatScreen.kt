@@ -99,7 +99,7 @@ fun ChatScreen(
                     enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty(),
                     placeholder = when {
                         uiState.selectedModel.isEmpty() -> "Select a model first"
-                        uiState.selectedModel.startsWith("offline:") -> "Ask ${displayModelName} (via cloud)..."
+                        uiState.selectedModel.startsWith("offline:") -> "Chat with offline model..."
                         else -> "Ask $displayModelName..."
                     }
                 )

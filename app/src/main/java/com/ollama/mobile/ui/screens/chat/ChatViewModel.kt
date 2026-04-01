@@ -73,10 +73,17 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
         
+        // For offline models, use cloud as fallback until local inference is implemented
         if (isOfflineModel(_uiState.value.selectedModel)) {
-            // For offline models, temporarily use cloud as fallback
-            // Later we'll integrate local inference
-            _uiState.value = _uiState.value.copy(selectedModel = "llama3.2")
+            val cloudModel = _uiState.value.selectedModel.removePrefix("offline:")
+            // Map to a compatible cloud model
+            val fallbackModel = when {
+                cloudModel.contains("qwen", ignoreCase = true) -> "qwen2.5"
+                cloudModel.contains("phi", ignoreCase = true) -> "phi3.5"
+                cloudModel.contains("gemma", ignoreCase = true) -> "gemma2:2b"
+                else -> "llama3.2"
+            }
+            _uiState.value = _uiState.value.copy(selectedModel = fallbackModel)
         }
         
         if (!repository.hasApiKey()) {
