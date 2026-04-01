@@ -9,15 +9,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.halilibo.richtext.markdown.Markdown
-import com.halilibo.richtext.material3.RichText
-import com.halilibo.richtext.markdown.CodeBlockStyling
+import com.halilibo.richtext.ui.RichText
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.ui.theme.AssistantBubble
 import com.ollama.mobile.ui.theme.AssistantBubbleLight
@@ -47,18 +45,6 @@ fun ChatBubble(
         RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
     }
 
-    val codeBlockStyling = remember(isDark) {
-        CodeBlockStyling(
-            backgroundColor = if (isDark) DarkCodeBackground else LightCodeBackground,
-            textColor = if (isDark) Color.White else Color.Black,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-            ),
-            padding = 12.dp,
-            shape = RoundedCornerShape(8.dp)
-        )
-    }
-
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -86,12 +72,15 @@ fun ChatBubble(
                     )
                 } else {
                     // Assistant messages render markdown
+                    val codeBlockBackground = if (isDark) DarkCodeBackground else LightCodeBackground
                     RichText(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        codeBlockBackgroundColor = { codeBlockBackground },
+                        codeBlockTextColor = { if (isDark) Color.White else Color.Black },
+                        codeBlockFontFamily = { FontFamily.Monospace }
                     ) {
                         Markdown(
-                            content = message.content,
-                            codeBlockStyling = codeBlockStyling
+                            content = message.content
                         )
                     }
                 }
