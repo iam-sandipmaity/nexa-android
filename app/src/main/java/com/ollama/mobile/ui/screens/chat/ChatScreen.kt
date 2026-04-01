@@ -67,6 +67,13 @@ fun ChatScreen(
         val hasApiKey = AppConfig.hasApiKey()
         if (!hasApiKey) {
             showApiKeyDialog = true
+        } else {
+            // Auto-select last used model from history
+            val history = viewModel.getChatHistory()
+            if (history.isNotEmpty()) {
+                val lastChat = history.first()
+                viewModel.initializeWithChat(lastChat.modelName, lastChat.id)
+            }
         }
     }
 
@@ -513,7 +520,11 @@ private fun HistoryDrawer(
             
             // New Chat Button
             Button(
-                onClick = onNewChat,
+                onClick = {
+                    onNewChat()
+                    // Save current chat to history before starting new one
+                    viewModel.saveChatToHistory()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),

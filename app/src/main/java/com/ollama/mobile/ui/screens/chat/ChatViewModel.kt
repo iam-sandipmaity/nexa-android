@@ -357,7 +357,7 @@ class ChatViewModel(
         val modelName = _uiState.value.selectedModel
         val messages = _uiState.value.messages
 
-        if (messages.isEmpty() || modelName.isEmpty()) return
+        if (modelName.isEmpty()) return
 
         viewModelScope.launch {
             try {
@@ -368,6 +368,9 @@ class ChatViewModel(
                         messages = messages
                     )
                 )
+                // Refresh history list in UI
+                val history = chatHistoryRepository.getAllHistory().first()
+                _uiState.value = _uiState.value.copy(chatHistory = history)
             } catch (e: Exception) {
                 // Ignore save errors
             }
@@ -381,5 +384,10 @@ class ChatViewModel(
         inferenceEngine?.free()
     }
 
-    private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
-}
+    fun getChatHistory(): List<ChatHistoryRepository.ChatHistoryEntry> {
+        return try {
+            runBlocking { chatHistoryRepository.getAllHistory().first() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
