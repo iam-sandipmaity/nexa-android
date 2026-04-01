@@ -19,9 +19,11 @@ class OfflineModelRepository {
 
     private val context get() = AppConfig.getAppContext()
     private val gson = Gson()
+
     private val prefs by lazy {
         context.getSharedPreferences("offline_model_catalog", android.content.Context.MODE_PRIVATE)
     }
+
     private val downloadClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
@@ -33,7 +35,9 @@ class OfflineModelRepository {
             .build()
     }
 
-    private val catalog = listOf(
+    // ─── Built-in catalog ────────────────────────────────────────────────────
+
+    private val builtInCatalog = listOf(
         OfflineModelInfo(
             id = "offline-qwen25-05b-q4km",
             name = "Qwen2.5-0.5B-Instruct-Q4_K_M",
@@ -166,7 +170,165 @@ class OfflineModelRepository {
         )
     )
 
-    fun getCatalog(): List<OfflineModelInfo> = catalog
+    // ─── Catalog (built-in + user-added) ─────────────────────────────────────
+
+    fun getCatalog(): List<OfflineModelInfo> = builtInCatalog + getCustomModels()
+
+    // ─── Custom model management ──────────────────────────────────────────────
+
+    /**
+     * Persist a user-supplied URL as a custom catalog entry so it shows up
+     * in [getCatalog] and can be downloaded through the normal [downloadModel] flow.
+     *
+     * The function performs a lightweight HEAD request to resolve the real
+     * filename and Content-Length before saving, so the caller gets accurate
+     * metadata back. If the HEAD request fails (e.g. server doesn't support
+     * it) we fall back to extracting the filename from the URL string itself.
+     *
+     * @param rawUrl  The direct-download URL entered by the user.
+     * @return        The [OfflineModelInfo] that was stored, ready for download.
+     * @throws IllegalArgumentException if the URL is blank or not HTTPS/HTTP.
+     * @throws IllegalStateException    if a model with the same derived ID is
+     *                                  already present in the catalog.
+     */
+    suspend fun addCustomModel(rawUrl: String): OfflineModelInfo {
+        val url = rawUrl.trim()
+        require(url.isNotBlank()) { "URL must not be blank" }
+        require(url.startsWith("http://") || url.startsWith("https://")) {
+            "URL must start with http:// or https://"
+        }
+
+        // ── Step 1: probe the URL for real metadata ───────────────────────
+        val (resolvedFileName, resolvedSizeBytes, resolvedLabel) = probeUrl(url)
+
+        // ── Step 2: derive stable ID from file name ───────────────────────
+        val safeId = "custom-${resolvedFileName.lowercase().replace(Regex("[^a-z0-9._-]"), "-")}"
+
+        // ── Step 3: reject duplicates ─────────────────────────────────────
+        val allIds = getCatalog().map { it.id }
+        check(safeId !in allIds) { "A model with this file is already in the catalog." }
+
+        // ── Step 4: infer display metadata from file name ─────────────────
+        val displayName = resolvedFileName
+            .removeSuffix(".gguf")
+            .replace(Regex("[-_]+"), " ")
+            .split(" ")
+            .joinToString(" ") { word ->
+                if (word.length <= 3 && word.all { it.isLetter() }) word.uppercase()
+                else word.replaceFirstChar { it.uppercase() }
+            }
+
+        val family = inferFamily(resolvedFileName)
+        val sizeLabel = if (resolvedSizeBytes > 0L) formatBytes(resolvedSizeBytes) else "Unknown"
+        val ramHint = when {
+            resolvedSizeBytes <= 800_000_000L  -> "2GB+ RAM recommended"
+            resolvedSizeBytes <= 2_000_000_000L -> "4GB+ RAM recommended"
+            resolvedSizeBytes <= 4_000_000_000L -> "6GB+ RAM recommended"
+            else                               -> "8GB+ RAM recommended"
+        }
+
+        val model = OfflineModelInfo(
+            id          = safeId,
+            name        = resolvedFileName.removeSuffix(".gguf"),
+            displayName = displayName,
+            description = "Custom model added by user.",
+            size        = sizeLabel,
+            sizeBytes   = resolvedSizeBytes,
+            family      = family,
+            minRam      = ramHint,
+            sourceUrl   = url,
+            fileName    = resolvedFileName,
+            sourceLabel = resolvedLabel
+        )
+
+        // ── Step 5: persist ───────────────────────────────────────────────
+        val updated = getCustomModels() + model
+        prefs.edit().putString(KEY_CUSTOM_MODELS, gson.toJson(updated)).apply()
+
+        return model
+    }
+
+    /** Remove a user-added custom model entry from the catalog (does not delete any downloaded file). */
+    fun removeCustomModel(modelId: String) {
+        val updated = getCustomModels().filterNot { it.id == modelId }
+        prefs.edit().putString(KEY_CUSTOM_MODELS, gson.toJson(updated)).apply()
+    }
+
+    private fun getCustomModels(): List<OfflineModelInfo> {
+        val json = prefs.getString(KEY_CUSTOM_MODELS, null).orEmpty()
+        if (json.isBlank()) return emptyList()
+        val type = object : TypeToken<List<OfflineModelInfo>>() {}.type
+        return runCatching {
+            gson.fromJson<List<OfflineModelInfo>>(json, type) ?: emptyList()
+        }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Sends a HEAD request to discover the real filename and file size.
+     */
+    private fun probeUrl(url: String): Triple<String, Long, String> {
+        val label = when {
+            url.contains("huggingface.co", ignoreCase = true) -> "Hugging Face"
+            url.contains("github.com", ignoreCase = true)     -> "GitHub"
+            url.contains("ollama.com", ignoreCase = true)     -> "Ollama"
+            else -> url.substringAfter("://").substringBefore("/")
+        }
+
+        return try {
+            val request = Request.Builder()
+                .url(url)
+                .head()
+                .build()
+
+            downloadClient.newCall(request).execute().use { resp ->
+                val contentDisposition = resp.header("Content-Disposition")
+                val fileName = extractFileName(contentDisposition, url)
+                val sizeBytes = resp.header("Content-Length")?.toLongOrNull() ?: 0L
+                Triple(fileName, sizeBytes, label)
+            }
+        } catch (_: Exception) {
+            val fileName = extractFileName(null, url)
+            Triple(fileName, 0L, label)
+        }
+    }
+
+    private fun extractFileName(contentDisposition: String?, url: String): String {
+        if (!contentDisposition.isNullOrBlank()) {
+            val cdFileName = Regex("""filename\*?=(?:UTF-8'')?["']?([^"';\s]+)["']?""", RegexOption.IGNORE_CASE)
+                .find(contentDisposition)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.let { java.net.URLDecoder.decode(it, "UTF-8") }
+            if (!cdFileName.isNullOrBlank()) return sanitizeFileName(cdFileName)
+        }
+
+        val path = url.substringBefore("?").trimEnd('/')
+        val rawName = path.substringAfterLast("/")
+        val decoded = runCatching { java.net.URLDecoder.decode(rawName, "UTF-8") }.getOrDefault(rawName)
+        return sanitizeFileName(decoded.ifBlank { "custom-model.gguf" })
+    }
+
+    private fun sanitizeFileName(name: String): String =
+        name.replace(Regex("""[\\/:*?"<>|]"""), "_").trim()
+
+    private fun inferFamily(fileName: String): String {
+        val lower = fileName.lowercase()
+        return when {
+            "llama"     in lower -> "Llama"
+            "mistral"   in lower -> "Mistral"
+            "phi"       in lower -> "Phi"
+            "gemma"     in lower -> "Gemma"
+            "qwen"      in lower -> "Qwen"
+            "deepseek"  in lower -> "DeepSeek"
+            "falcon"    in lower -> "Falcon"
+            "mpt"       in lower -> "MPT"
+            "stablelm"  in lower -> "StableLM"
+            "tinyllama" in lower -> "Llama"
+            else                 -> "Custom"
+        }
+    }
+
+    // ─── Downloaded model management ─────────────────────────────────────────
 
     fun getDownloadedModels(): List<DownloadedOfflineModel> {
         val json = prefs.getString(KEY_DOWNLOADED_MODELS, null).orEmpty()
@@ -178,44 +340,46 @@ class OfflineModelRepository {
         }.getOrDefault(emptyList())
 
         val verified = persisted.filter { File(it.localPath).exists() }
-        if (verified.size != persisted.size) {
-            persistDownloadedModels(verified)
-        }
+        if (verified.size != persisted.size) persistDownloadedModels(verified)
         return verified
     }
+
+    // ─── Download ─────────────────────────────────────────────────────────────
 
     fun downloadModel(model: OfflineModelInfo): Flow<OfflineDownloadProgress> = flow {
         emit(OfflineDownloadProgress(progress = 0f, status = "Preparing download"))
 
         val modelDir = File(context.filesDir, "offline-models/${model.id}")
-        if (!modelDir.exists()) {
-            modelDir.mkdirs()
-        }
+        if (!modelDir.exists()) modelDir.mkdirs()
 
         val targetFile = File(modelDir, model.fileName)
-        val tempFile = File(modelDir, "${model.fileName}.part")
+        val tempFile   = File(modelDir, "${model.fileName}.part")
 
-        if (targetFile.exists() && targetFile.length() > 1000000L) {
+        if (targetFile.exists() && targetFile.length() > 1_000_000L) {
             saveDownloadedModel(model, targetFile)
             emit(OfflineDownloadProgress(progress = 1f, status = "Already downloaded"))
             return@flow
         }
 
         try {
-            emit(OfflineDownloadProgress(progress = 0f, status = "Connecting to ${model.sourceLabel}..."))
-            
+            emit(OfflineDownloadProgress(progress = 0f, status = "Connecting to ${model.sourceLabel}…"))
+
             val request = Request.Builder()
                 .url(model.sourceUrl)
                 .header("Accept", "*/*")
                 .build()
 
             val response = downloadClient.newCall(request).execute()
-            
+
             if (!response.isSuccessful) {
-                throw IllegalStateException("Download failed with HTTP ${response.code}: ${response.message}")
+                throw IllegalStateException(
+                    "Download failed with HTTP ${response.code}: ${response.message}"
+                )
             }
 
-            val body = response.body ?: throw IllegalStateException("Empty response body")
+            val body = response.body
+                ?: throw IllegalStateException("Empty response body")
+
             val totalBytes = body.contentLength().takeIf { it > 0L } ?: model.sizeBytes
 
             emit(OfflineDownloadProgress(progress = 0f, status = "Downloading 0 / ${formatBytes(totalBytes)}"))
@@ -234,16 +398,14 @@ class OfflineModelRepository {
                         downloadedBytes += read
 
                         val progress = if (totalBytes > 0L) {
-                            downloadedBytes.toFloat() / totalBytes.toFloat()
-                        } else {
-                            0f
-                        }
+                            (downloadedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f)
+                        } else 0f
 
                         val now = System.currentTimeMillis()
                         if (now - lastEmitTime > 500 || progress >= 1f) {
                             emit(
                                 OfflineDownloadProgress(
-                                    progress = progress.coerceIn(0f, 1f),
+                                    progress = progress,
                                     status = "Downloading ${formatBytes(downloadedBytes)} / ${formatBytes(totalBytes)}"
                                 )
                             )
@@ -255,15 +417,15 @@ class OfflineModelRepository {
                 }
             }
 
-            // Save model registration BEFORE renaming (so crash recovery works)
+            // Register BEFORE rename so a crash mid-rename can still be recovered.
             saveDownloadedModel(model, tempFile)
-            
-            // Now rename temp to target
-            if (targetFile.exists()) {
-                targetFile.delete()
-            }
+
+            if (targetFile.exists()) targetFile.delete()
             tempFile.renameTo(targetFile)
-            
+
+            // Update the stored path to the final (renamed) file.
+            saveDownloadedModel(model, targetFile)
+
             emit(OfflineDownloadProgress(progress = 1f, status = "Download complete"))
         } catch (e: Exception) {
             tempFile.delete()
@@ -272,6 +434,8 @@ class OfflineModelRepository {
         }
     }.flowOn(Dispatchers.IO)
 
+    // ─── Delete ───────────────────────────────────────────────────────────────
+
     fun deleteDownloadedModel(modelId: String) {
         val model = getDownloadedModels().firstOrNull { it.id == modelId } ?: return
         File(model.localPath).delete()
@@ -279,18 +443,21 @@ class OfflineModelRepository {
         persistDownloadedModels(getDownloadedModels().filterNot { it.id == modelId })
     }
 
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
     private fun saveDownloadedModel(model: OfflineModelInfo, targetFile: File) {
-        val updated = getDownloadedModels().filterNot { it.id == model.id } + DownloadedOfflineModel(
-            id = model.id,
-            name = model.name,
-            displayName = model.displayName,
-            fileName = model.fileName,
-            localPath = targetFile.absolutePath,
-            sizeBytes = targetFile.length().takeIf { it > 0L } ?: model.sizeBytes,
-            downloadedAtMillis = System.currentTimeMillis(),
-            sourceUrl = model.sourceUrl,
-            sourceLabel = model.sourceLabel
-        )
+        val updated = getDownloadedModels().filterNot { it.id == model.id } +
+            DownloadedOfflineModel(
+                id               = model.id,
+                name             = model.name,
+                displayName      = model.displayName,
+                fileName         = model.fileName,
+                localPath        = targetFile.absolutePath,
+                sizeBytes        = targetFile.length().takeIf { it > 0L } ?: model.sizeBytes,
+                downloadedAtMillis = System.currentTimeMillis(),
+                sourceUrl        = model.sourceUrl,
+                sourceLabel      = model.sourceLabel
+            )
         persistDownloadedModels(updated.sortedBy { it.displayName })
     }
 
@@ -299,13 +466,14 @@ class OfflineModelRepository {
     }
 
     private fun formatBytes(sizeBytes: Long): String = when {
-        sizeBytes >= 1_000_000_000 -> String.format("%.1fGB", sizeBytes / 1_000_000_000.0)
-        sizeBytes >= 1_000_000 -> String.format("%.0fMB", sizeBytes / 1_000_000.0)
-        else -> String.format("%dKB", sizeBytes / 1000)
+        sizeBytes >= 1_000_000_000L -> String.format("%.1fGB", sizeBytes / 1_000_000_000.0)
+        sizeBytes >= 1_000_000L     -> String.format("%.0fMB", sizeBytes / 1_000_000.0)
+        else                        -> String.format("%dKB", sizeBytes / 1000)
     }
 
     companion object {
         private const val KEY_DOWNLOADED_MODELS = "downloaded_offline_models"
+        private const val KEY_CUSTOM_MODELS     = "custom_model_catalog"
     }
 }
 

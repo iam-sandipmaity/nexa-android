@@ -24,7 +24,8 @@ data class ModelBrowserState(
     val searchQuery: String = "",
     val selectedFamily: String? = null,
     val isConnected: Boolean = false,
-    val needsApiKey: Boolean = false
+    val needsApiKey: Boolean = false,
+    val importState: ImportState = ImportState.Idle
 )
 
 class ModelBrowserViewModel(
@@ -150,6 +151,54 @@ class ModelBrowserViewModel(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    /**
+     * Called when the user taps "Import" in the dialog.
+     */
+    fun addCustomModelFromUrl(rawUrl: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(importState = ImportState.Probing)
+            runCatching {
+                val normalised = normaliseUrl(rawUrl)
+                offlineRepository.addCustomModel(normalised)
+            }.onSuccess { model ->
+                _uiState.value = _uiState.value.copy(
+                    importState = ImportState.Success(model),
+                    offlineCatalog = offlineRepository.getCatalog()
+                )
+                downloadOfflineModel(model)
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(
+                    importState = ImportState.Error(e.message ?: "Unknown error")
+                )
+            }
+        }
+    }
+
+    /** Reset import dialog state (called when dialog is dismissed). */
+    fun clearImportState() {
+        _uiState.value = _uiState.value.copy(importState = ImportState.Idle)
+    }
+
+    /**
+     * Convert Hugging Face viewer (/blob/) URLs to direct-download (/resolve/) URLs
+     * and append ?download=true if missing.
+     */
+    private fun normaliseUrl(raw: String): String {
+        var url = raw.trim()
+
+        if (url.contains("/blob/", ignoreCase = true)) {
+            url = url.replace("/blob/", "/resolve/", ignoreCase = true)
+        }
+
+        if (url.contains("huggingface.co", ignoreCase = true) &&
+            !url.contains("download=true", ignoreCase = true)
+        ) {
+            url = if (url.contains('?')) "$url&download=true" else "$url?download=true"
+        }
+
+        return url
     }
 
     fun getFilteredModels(): List<OllamaModelInfo> {
