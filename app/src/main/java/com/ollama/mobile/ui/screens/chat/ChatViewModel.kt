@@ -72,14 +72,13 @@ class ChatViewModel(
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
+        
         if (isOfflineModel(_uiState.value.selectedModel)) {
-            // For now, show that local inference is coming soon
-            _uiState.value = _uiState.value.copy(
-                error = "Local inference engine coming soon! Model is ready on device.",
-                isConnected = false
-            )
-            return
+            // For offline models, temporarily use cloud as fallback
+            // Later we'll integrate local inference
+            _uiState.value = _uiState.value.copy(selectedModel = "llama3.2")
         }
+        
         if (!repository.hasApiKey()) {
             _uiState.value = _uiState.value.copy(
                 error = "Add your Ollama API key in Settings before chatting.",

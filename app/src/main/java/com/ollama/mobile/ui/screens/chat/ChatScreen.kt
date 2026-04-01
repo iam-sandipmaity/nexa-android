@@ -97,12 +97,10 @@ fun ChatScreen(
                     onValueChange = viewModel::updateInputText,
                     onSend = viewModel::sendMessage,
                     enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty(),
-                    placeholder = if (uiState.selectedModel.isEmpty()) {
-                        "Select a model first"
-                    } else if (uiState.selectedModel.startsWith("offline:")) {
-                        "Local inference engine coming soon..."
-                    } else {
-                        "Ask $displayModelName..."
+                    placeholder = when {
+                        uiState.selectedModel.isEmpty() -> "Select a model first"
+                        uiState.selectedModel.startsWith("offline:") -> "Ask ${displayModelName} (via cloud)..."
+                        else -> "Ask $displayModelName..."
                     }
                 )
             }
@@ -191,7 +189,7 @@ private fun EmptyChatState(
                 Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = when {
-                isOfflineModel -> "Offline model downloaded and ready!\nLocal AI inference coming soon."
+                isOfflineModel -> "Send a message to chat with offline model\n(via cloud fallback for now)"
                 !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
                 modelName.isEmpty() -> "Select a model to start"
                 else -> "Send a message to begin with\n$modelName"
