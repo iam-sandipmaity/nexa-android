@@ -11,9 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudOff
@@ -778,6 +780,76 @@ private fun BrowseModelsTab(
         }
         
         Spacer(modifier = Modifier.height(16.dp))
+        
+        // Import Custom Model Button
+        var showImportDialog by remember { mutableStateOf(false) }
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { showImportDialog = true },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.AddCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Import Custom Model",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        "Add any GGUF model from Hugging Face",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.5f)
+                )
+            }
+        }
+        
+        if (showImportDialog) {
+            ImportModelDialog(
+                onDismiss = { showImportDialog = false },
+                onImport = { name, url ->
+                    // Create a custom model entry
+                    val customId = "custom-${name.lowercase().replace(Regex("[^a-z0-9]"), "-")}"
+                    val customModel = OfflineModelInfo(
+                        id = customId,
+                        name = name,
+                        displayName = name,
+                        description = "Custom imported model from Hugging Face",
+                        size = "Unknown",
+                        sizeBytes = 0,
+                        family = "Custom",
+                        minRam = "4GB+ RAM recommended",
+                        sourceUrl = url,
+                        fileName = url.substringAfterLast("/").split("?").first(),
+                        sourceLabel = "Hugging Face"
+                    )
+                    onDownload(customModel)
+                    showImportDialog = false
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -967,6 +1039,84 @@ private fun getFamilyColor(family: String): Color {
         "mistral" -> Color(0xFFE94235)
         "qwen" -> Color(0xFFFF9800)
         "phi" -> Color(0xFF0078D4)
+        "deepseek" -> Color(0xFF00BCD4)
+        "codellama" -> Color(0xFF4CAF50)
+        "custom" -> Color(0xFF9C27B0)
         else -> Color(0xFF607D8B)
     }
+}
+
+@Composable
+private fun ImportModelDialog(
+    onDismiss: () -> Unit,
+    onImport: (String, String) -> Unit
+) {
+    var modelName by remember { mutableStateOf("") }
+    var modelUrl by remember { mutableStateOf("") }
+    var urlError by remember { mutableStateOf<String?>(null) }
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import Custom Model", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "Paste a Hugging Face GGUF model URL to download it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                OutlinedTextField(
+                    value = modelName,
+                    onValueChange = { modelName = it },
+                    label = { Text("Model Name") },
+                    placeholder = { Text("e.g., My Custom Model") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                OutlinedTextField(
+                    value = modelUrl,
+                    onValueChange = { 
+                        modelUrl = it
+                        urlError = if (it.isNotBlank() && !it.contains("huggingface.co", ignoreCase = true) && !it.endsWith(".gguf", ignoreCase = true)) {
+                            "URL should be a Hugging Face GGUF link"
+                        } else null
+                    },
+                    label = { Text("Hugging Face URL") },
+                    placeholder = { Text("https://huggingface.co/...file.gguf") },
+                    singleLine = true,
+                    isError = urlError != null,
+                    supportingText = { urlError?.let { Text(it) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    "Example: https://huggingface.co/user/model/resolve/main/model.gguf",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onImport(modelName, modelUrl) },
+                enabled = modelName.isNotBlank() && modelUrl.isNotBlank() && urlError == null
+            ) {
+                Text("Import")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
