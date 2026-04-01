@@ -28,9 +28,10 @@ class ChatViewModel(
     fun initializeWithModel(modelName: String) {
         _uiState.value = _uiState.value.copy(selectedModel = modelName)
         if (isOfflineModel(modelName)) {
+            // For offline models, we need local inference engine
             _uiState.value = _uiState.value.copy(
                 isConnected = false,
-                error = "This model is downloaded on the device, but local offline inference is not integrated yet."
+                error = null // Clear error - show the ready state instead
             )
             return
         }
@@ -72,8 +73,9 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
         if (isOfflineModel(_uiState.value.selectedModel)) {
+            // For now, show that local inference is coming soon
             _uiState.value = _uiState.value.copy(
-                error = "Offline model files are downloaded, but local inference still needs to be added.",
+                error = "Local inference engine coming soon! Model is ready on device.",
                 isConnected = false
             )
             return

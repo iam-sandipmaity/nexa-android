@@ -100,7 +100,7 @@ fun ChatScreen(
                     placeholder = if (uiState.selectedModel.isEmpty()) {
                         "Select a model first"
                     } else if (uiState.selectedModel.startsWith("offline:")) {
-                        "Offline runtime integration is still pending"
+                        "Local inference engine coming soon..."
                     } else {
                         "Ask $displayModelName..."
                     }
@@ -189,13 +189,13 @@ private fun EmptyChatState(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = when {
-                        isOfflineModel -> "This model is downloaded on-device.\nLocal offline inference still needs to be integrated."
-                        !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
-                        modelName.isEmpty() -> "Select a model to start"
-                        else -> "Send a message to begin with\n$modelName"
-                    },
+        Text(
+            text = when {
+                isOfflineModel -> "Offline model downloaded and ready!\nLocal AI inference coming soon."
+                !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
+                modelName.isEmpty() -> "Select a model to start"
+                else -> "Send a message to begin with\n$modelName"
+            },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
