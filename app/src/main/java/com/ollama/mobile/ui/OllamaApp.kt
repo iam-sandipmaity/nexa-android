@@ -40,6 +40,10 @@ fun OllamaApp() {
                 onNavigateToChat = { modelName ->
                     CrashLogger.log("Navigating to chat with model: $modelName")
                     navController.navigate(Screen.Chat.createRoute(modelName))
+                },
+                onNavigateToSettings = {
+                    CrashLogger.log("Navigating to settings")
+                    navController.navigate(Screen.Settings.route)
                 }
             )
         }

@@ -32,12 +32,26 @@ class ChatViewModel(
 
     private fun checkConnection() {
         viewModelScope.launch {
+            if (!repository.hasApiKey()) {
+                _uiState.value = _uiState.value.copy(
+                    isConnected = false,
+                    error = "Add your Ollama API key in Settings to start chatting."
+                )
+                return@launch
+            }
+
             repository.checkConnection().fold(
                 onSuccess = { connected ->
-                    _uiState.value = _uiState.value.copy(isConnected = connected)
+                    _uiState.value = _uiState.value.copy(
+                        isConnected = connected,
+                        error = if (connected) null else "Couldn't connect to Ollama Cloud."
+                    )
                 },
                 onFailure = {
-                    _uiState.value = _uiState.value.copy(isConnected = false)
+                    _uiState.value = _uiState.value.copy(
+                        isConnected = false,
+                        error = "Couldn't connect to Ollama Cloud."
+                    )
                 }
             )
         }
@@ -50,6 +64,13 @@ class ChatViewModel(
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
         if (text.isBlank() || _uiState.value.isLoading) return
+        if (!repository.hasApiKey()) {
+            _uiState.value = _uiState.value.copy(
+                error = "Add your Ollama API key in Settings before chatting.",
+                isConnected = false
+            )
+            return
+        }
 
         val userMessage = ChatMessage(role = "user", content = text)
         val newMessages = _uiState.value.messages + userMessage

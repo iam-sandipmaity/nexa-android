@@ -1,28 +1,22 @@
-# Ollama Mobile - AI Model Hub
+# Ollama Mobile - Cloud Client
 
-Android app to browse, download, and chat with Ollama models from a phone.
+Android app for browsing Ollama models and chatting with them through Ollama Cloud.
 
 ## Features
 
-- Browse popular models such as Llama, Gemma, Mistral, Qwen, and Phi
-- View model size, RAM needs, and descriptions
-- Download and delete local models
-- Chat with downloaded models through a Compose UI
-- Configure the Ollama server URL from the app
-
-## Download APK
-
-The project now produces only the release APK.
-
-1. Open the GitHub Actions run
-2. Download the `ollama-mobile-release` artifact
-3. Install `app-release.apk` on your device
+- Browse curated and cloud-listed Ollama models
+- Search and filter models by family
+- Chat directly with models from the app
+- Store your Ollama API key locally on the device
+- No localhost setup required
 
 ## Setup
 
-1. Install Ollama on your computer
-2. Start Ollama with `ollama serve`
-3. Enter your server URL in the app, for example `http://192.168.1.100:11434/`
+1. Create an API key on `ollama.com`
+2. Open the app settings
+3. Paste your API key
+4. Test the cloud connection
+5. Pick a model and start chatting
 
 ## Build
 
@@ -42,19 +36,8 @@ Release APK output:
 
 `app/build/outputs/apk/release/app-release.apk`
 
-## Tech Stack
+## Notes
 
-- Kotlin
-- Jetpack Compose
-- Material 3
-- Retrofit
-- MVVM
-
-## CI/CD
-
-- Automatic release APK build on push
-- Release artifact upload in GitHub Actions
-
-## License
-
-MIT
+- The app now uses Ollama Cloud instead of a local `localhost:11434` server
+- This does not run models fully on-device
+- True offline on-device model execution would require integrating a mobile inference engine

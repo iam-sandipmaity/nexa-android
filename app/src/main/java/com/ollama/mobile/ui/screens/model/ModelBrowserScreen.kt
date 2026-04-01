@@ -3,7 +3,18 @@
 package com.ollama.mobile.ui.screens.model
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -11,9 +22,36 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,12 +61,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.ollama.mobile.domain.model.LocalModel
 import com.ollama.mobile.domain.model.OllamaModelInfo
 
 @Composable
 fun ModelBrowserScreen(
     onNavigateToChat: (String) -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: ModelBrowserViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -44,10 +82,13 @@ fun ModelBrowserScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Ollama Models") },
+                title = { Text("Ollama Cloud Models") },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
+                    IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = onNavigateToSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -62,13 +103,13 @@ fun ModelBrowserScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Connection Status Banner
             ConnectionBanner(
                 isConnected = uiState.isConnected,
-                onRetry = { viewModel.loadModels() }
+                needsApiKey = uiState.needsApiKey,
+                onRetry = viewModel::loadModels,
+                onOpenSettings = onNavigateToSettings
             )
 
-            // Search Field
             SearchField(
                 query = uiState.searchQuery,
                 onQueryChange = viewModel::updateSearchQuery,
@@ -77,34 +118,18 @@ fun ModelBrowserScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            // Family Filter Chips
             FamilyFilterRow(
                 families = viewModel.getModelFamilies(),
                 selectedFamily = uiState.selectedFamily,
                 onFamilySelected = viewModel::selectFamily
             )
 
-            // Model Lists
-            if (uiState.localModels.isNotEmpty()) {
-                LocalModelsSection(
-                    models = uiState.localModels,
-                    onModelClick = onNavigateToChat,
-                    onDeleteModel = viewModel::deleteModel,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // Available Models
             AvailableModelsSection(
                 models = viewModel.getFilteredModels(),
-                localModels = uiState.localModels.map { it.name },
-                downloadingModels = uiState.downloadingModels,
-                onDownload = viewModel::downloadModel,
                 onModelClick = onNavigateToChat
             )
         }
 
-        // Loading indicator
         if (uiState.isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -119,11 +144,12 @@ fun ModelBrowserScreen(
 @Composable
 private fun ConnectionBanner(
     isConnected: Boolean,
-    onRetry: () -> Unit
+    needsApiKey: Boolean,
+    onRetry: () -> Unit,
+    onOpenSettings: () -> Unit
 ) {
     Surface(
-        color = if (isConnected) MaterialTheme.colorScheme.primaryContainer 
-                else MaterialTheme.colorScheme.errorContainer,
+        color = if (isConnected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -133,19 +159,20 @@ private fun ConnectionBanner(
             Icon(
                 if (isConnected) Icons.Default.CloudDone else Icons.Default.CloudOff,
                 contentDescription = null,
-                tint = if (isConnected) MaterialTheme.colorScheme.primary 
-                       else MaterialTheme.colorScheme.error
+                tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = if (isConnected) "Connected to Ollama" else "Not connected to Ollama",
+                text = when {
+                    isConnected -> "Connected to Ollama Cloud"
+                    needsApiKey -> "Add your Ollama API key in Settings to use cloud models"
+                    else -> "Couldn't reach Ollama Cloud"
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.weight(1f)
             )
-            if (!isConnected) {
-                TextButton(onClick = onRetry) {
-                    Text("Retry")
-                }
+            TextButton(onClick = if (needsApiKey) onOpenSettings else onRetry) {
+                Text(if (needsApiKey) "Settings" else "Retry")
             }
         }
     }
@@ -158,20 +185,13 @@ private fun SearchField(
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
-    
+
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier,
-        placeholder = { Text("Search models...") },
+        placeholder = { Text("Search cloud models...") },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
-                }
-            }
-        },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
@@ -207,61 +227,22 @@ private fun FamilyFilterRow(
 }
 
 @Composable
-private fun LocalModelsSection(
-    models: List<LocalModel>,
-    onModelClick: (String) -> Unit,
-    onDeleteModel: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(modifier = modifier) {
-        Text(
-            text = "Downloaded (${models.size})",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(vertical = 8.dp)
-        )
-        
-        models.forEach { model ->
-            LocalModelCard(
-                model = model,
-                onClick = { onModelClick(model.name) },
-                onDelete = { onDeleteModel(model.name) }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        
-        Divider(modifier = Modifier.padding(vertical = 8.dp))
-    }
-}
-
-@Composable
 private fun AvailableModelsSection(
     models: List<OllamaModelInfo>,
-    localModels: List<String>,
-    downloadingModels: Map<String, Float>,
-    onDownload: (OllamaModelInfo) -> Unit,
     onModelClick: (String) -> Unit
 ) {
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         Text(
-            text = "Available Models",
+            text = "Available Cloud Models",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(vertical = 8.dp)
         )
-        
+
         LazyColumn {
             items(models) { model ->
-                val isDownloaded = model.name in localModels
-                val isDownloading = downloadingModels.containsKey(model.name)
-                val progress = downloadingModels[model.name] ?: 0f
-                
                 AvailableModelCard(
                     model = model,
-                    isDownloaded = isDownloaded,
-                    isDownloading = isDownloading,
-                    downloadProgress = progress,
-                    onDownload = { onDownload(model) },
                     onClick = { onModelClick(model.name) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -271,92 +252,11 @@ private fun AvailableModelsSection(
 }
 
 @Composable
-private fun LocalModelCard(
-    model: LocalModel,
-    onClick: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = model.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = model.formattedSize,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-            }
-            IconButton(onClick = { showDeleteDialog = true }) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
-        }
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete Model") },
-            text = { Text("Delete ${model.name}? This will free up ${model.formattedSize}.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDelete()
-                        showDeleteDialog = false
-                    }
-                ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-}
-
-@Composable
 private fun AvailableModelCard(
     model: OllamaModelInfo,
-    isDownloaded: Boolean,
-    isDownloading: Boolean,
-    downloadProgress: Float,
-    onDownload: () -> Unit,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = if (isDownloaded) onClick else { {} },
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -374,15 +274,15 @@ private fun AvailableModelCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = model.family.first().toString(),
+                        text = model.family.firstOrNull()?.uppercase() ?: "?",
                         style = MaterialTheme.typography.titleLarge,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.width(12.dp))
-                
+
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = model.displayName,
@@ -397,9 +297,9 @@ private fun AvailableModelCard(
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -427,69 +327,24 @@ private fun AvailableModelCard(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "RAM: ${model.minRam}",
+                        text = model.minRam,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
-            when {
-                isDownloading -> {
-                    DownloadProgressIndicator(progress = downloadProgress)
-                }
-                isDownloaded -> {
-                    Button(
-                        onClick = onClick,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Chat, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Chat")
-                    }
-                }
-                else -> {
-                    OutlinedButton(
-                        onClick = onDownload,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Download, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Download")
-                    }
-                }
+
+            Button(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Chat, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Open Chat")
             }
         }
-    }
-}
-
-@Composable
-private fun DownloadProgressIndicator(progress: Float) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "Downloading...",
-                style = MaterialTheme.typography.bodySmall
-            )
-            Text(
-                text = "${(progress * 100).toInt()}%",
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        LinearProgressIndicator(
-            progress = progress,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .clip(RoundedCornerShape(3.dp))
-        )
     }
 }
 

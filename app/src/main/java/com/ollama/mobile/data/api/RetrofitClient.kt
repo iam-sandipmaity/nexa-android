@@ -1,5 +1,6 @@
 package com.ollama.mobile.data.api
 
+import com.ollama.mobile.data.config.AppConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -8,24 +9,28 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    private var baseUrl = "http://localhost:11434/"
+    private var baseUrl = AppConfig.getBaseUrl()
+    private var apiKey = AppConfig.getApiKey()
 
     private fun createOkHttpClient(): OkHttpClient {
         val builder = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
-        
-        // Add logging in debug mode only
-        try {
-            val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
+
+            .addInterceptor { chain ->
+                val requestBuilder = chain.request().newBuilder()
+                if (apiKey.isNotBlank()) {
+                    requestBuilder.header("Authorization", "Bearer $apiKey")
+                }
+                chain.proceed(requestBuilder.build())
             }
-            builder.addInterceptor(loggingInterceptor)
-        } catch (e: Exception) {
-            // Ignore if logging interceptor not available
+
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = HttpLoggingInterceptor.Level.BASIC
         }
-        
+        builder.addInterceptor(loggingInterceptor)
+
         return builder.build()
     }
 
@@ -47,9 +52,16 @@ object RetrofitClient {
         retrofit = createRetrofit()
     }
 
+    fun updateApiKey(newApiKey: String) {
+        apiKey = newApiKey.trim()
+        okHttpClient = createOkHttpClient()
+        retrofit = createRetrofit()
+    }
+
     fun getApi(): OllamaApi {
         return retrofit.create(OllamaApi::class.java)
     }
 
     fun getBaseUrl(): String = baseUrl
+    fun getApiKey(): String = apiKey
 }

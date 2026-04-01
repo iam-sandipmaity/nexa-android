@@ -1,13 +1,36 @@
 package com.ollama.mobile.ui.screens.settings
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -21,7 +44,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text("Cloud Settings") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -43,24 +66,29 @@ fun SettingsScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Server URL Section
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Ollama Server",
+                        text = "Ollama Cloud",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = uiState.baseUrl,
                         onValueChange = viewModel::updateBaseUrl,
-                        label = { Text("Server URL") },
-                        placeholder = { Text("http://localhost:11434/") },
+                        label = { Text("API Base URL") },
+                        placeholder = { Text("https://ollama.com/") },
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = uiState.apiKey,
+                        onValueChange = viewModel::updateApiKey,
+                        label = { Text("API Key") },
+                        placeholder = { Text("Paste your Ollama API key") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         trailingIcon = {
                             when (uiState.connectionStatus) {
@@ -74,11 +102,11 @@ fun SettingsScreen(
                                     contentDescription = "Failed",
                                     tint = MaterialTheme.colorScheme.error
                                 )
-                                ConnectionStatus.Unknown -> {}
+                                ConnectionStatus.Unknown -> Unit
                             }
                         }
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = viewModel::testConnection,
                         enabled = !uiState.isTestingConnection
@@ -90,57 +118,28 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Test Connection")
+                        Text("Test Cloud Connection")
                     }
                 }
             }
 
-            // About Section
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text(
-                        text = "About",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Ollama Mobile v1.0.0",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "A mobile client for Ollama LLM runtime",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                    )
-                }
-            }
-
-            // Instructions
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
-                        text = "Setup Instructions",
+                        text = "How it works",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "1. Install Ollama on your computer\n" +
-                                "2. Download models using 'ollama pull'\n" +
-                                "3. Ensure Ollama is running\n" +
-                                "4. For local testing, use localhost:11434\n" +
-                                "5. For remote access, use your server IP",
+                        text = "1. Create an API key on ollama.com\n" +
+                            "2. Paste it here\n" +
+                            "3. Browse cloud models in the app\n" +
+                            "4. Start chatting directly without localhost",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }

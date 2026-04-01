@@ -1,26 +1,20 @@
 package com.ollama.mobile.data.api
 
-import com.ollama.mobile.data.model.*
+import com.ollama.mobile.data.model.ChatRequest
+import com.ollama.mobile.data.model.ChatResponse
+import com.ollama.mobile.data.model.TagsResponse
+import com.ollama.mobile.data.model.VersionResponse
 import retrofit2.Response
 import retrofit2.http.*
 
 interface OllamaApi {
 
     @GET("/api/tags")
-    suspend fun getLocalModels(): Response<TagsResponse>
-
-    @POST("/api/pull")
-    suspend fun pullModel(@Body request: PullRequest): Response<PullResponse>
-
-    @HTTP(method = "DELETE", path = "/api/delete", hasBody = true)
-    suspend fun deleteModel(@Body request: DeleteModelRequest): Response<DeleteResponse>
-
-    @GET("/api/show")
-    suspend fun getModelInfo(@Query("name") name: String): Response<ModelDetail>
+    suspend fun listModels(): Response<TagsResponse>
 
     @POST("/api/chat")
     suspend fun chat(@Body request: ChatRequest): Response<ChatResponse>
 
-    @GET("/")
-    suspend fun health(): Response<Unit>
+    @GET("/api/version")
+    suspend fun version(): Response<VersionResponse>
 }

@@ -167,7 +167,7 @@ private fun EmptyChatState(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = when {
-                !isConnected -> "Make sure Ollama is running"
+                !isConnected -> "Add your API key in Settings or check your Ollama Cloud connection"
                 modelName.isEmpty() -> "Select a model to start"
                 else -> "Send a message to begin with $modelName"
             },

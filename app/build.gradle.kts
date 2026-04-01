@@ -1,6 +1,15 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+}
+
+val localProperties = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        localFile.inputStream().use(::load)
+    }
 }
 
 android {
@@ -18,6 +27,17 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField(
+            "String",
+            "OLLAMA_BASE_URL",
+            "\"${(localProperties.getProperty("ollama.baseUrl") ?: "https://ollama.com/").replace("\"", "\\\"")}\""
+        )
+        buildConfigField(
+            "String",
+            "OLLAMA_API_KEY",
+            "\"${(localProperties.getProperty("ollama.apiKey") ?: "").replace("\"", "\\\"")}\""
+        )
     }
 
     buildTypes {
