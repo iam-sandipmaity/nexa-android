@@ -51,7 +51,10 @@ fun OllamaApp() {
             ModelBrowserScreen(
                 onNavigateToChat = { modelName ->
                     CrashLogger.log("Navigating to chat with model: $modelName")
-                    navController.navigate(Screen.Chat.createRoute(modelName))
+                    navController.navigate(Screen.Chat.createRoute(modelName)) {
+                        popUpTo(Screen.Chat.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToSettings = {
                     CrashLogger.log("Navigating to settings")
@@ -105,7 +108,10 @@ fun OllamaApp() {
             HistoryScreen(
                 onNavigateToChat = { modelName, chatId ->
                     CrashLogger.log("Navigating to chat from history: $modelName, $chatId")
-                    navController.navigate(Screen.Chat.createRoute(modelName, chatId))
+                    navController.navigate(Screen.Chat.createRoute(modelName, chatId)) {
+                        popUpTo(Screen.Chat.route) { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateBack = {
                     CrashLogger.log("Navigating back from history")

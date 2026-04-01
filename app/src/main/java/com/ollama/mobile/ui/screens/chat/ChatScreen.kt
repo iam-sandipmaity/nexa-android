@@ -67,19 +67,18 @@ fun ChatScreen(
         val hasApiKey = AppConfig.hasApiKey()
         if (!hasApiKey) {
             showApiKeyDialog = true
-        } else {
-            // Auto-select last used model from history
-            val history = viewModel.getChatHistory()
-            if (history.isNotEmpty()) {
-                val lastChat = history.first()
-                viewModel.initializeWithChat(lastChat.modelName, lastChat.id)
-            }
         }
     }
 
     LaunchedEffect(selectedModel, existingChatId) {
         if (selectedModel.isNotEmpty()) {
-            viewModel.initializeWithChat(selectedModel, existingChatId)
+            if (existingChatId != null) {
+                // Loading a specific existing chat from history
+                viewModel.initializeWithChat(selectedModel, existingChatId)
+            } else {
+                // Starting a fresh chat with a new model
+                viewModel.startNewChat(selectedModel)
+            }
         }
     }
 
