@@ -43,14 +43,6 @@ data class ChatResult(
     val totalDuration: Long?
 )
 
-data class Chat(
-    val id: String,
-    val model: String,
-    val title: String,
-    val messages: List<ChatMessage>,
-    val createdAt: Long
-)
-
 enum class ModelFamily(val displayName: String) {
     LLAMA("Llama"),
     GEMMA("Gemma"),

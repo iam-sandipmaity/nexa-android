@@ -212,10 +212,11 @@ private fun LocalModelsSection(
             Spacer(modifier = Modifier.height(8.dp))
         }
         
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        Divider(modifier = Modifier.padding(vertical = 8.dp))
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AvailableModelsSection(
     models: List<OllamaModelInfo>,
@@ -252,6 +253,7 @@ private fun AvailableModelsSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LocalModelCard(
     model: LocalModel,
@@ -326,6 +328,7 @@ private fun LocalModelCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AvailableModelCard(
     model: OllamaModelInfo,
@@ -472,7 +475,7 @@ private fun DownloadProgressIndicator(progress: Float) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         LinearProgressIndicator(
-            progress = { progress },
+            progress = progress,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)

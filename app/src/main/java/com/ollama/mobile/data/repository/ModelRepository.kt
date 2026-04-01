@@ -6,10 +6,6 @@ import com.ollama.mobile.data.model.*
 import com.ollama.mobile.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 class ModelRepository(private val api: OllamaApi = RetrofitClient.getApi()) {
@@ -180,7 +176,7 @@ class ModelRepository(private val api: OllamaApi = RetrofitClient.getApi()) {
             id = "orca-mini",
             name = "orca-mini",
             displayName = "Orca Mini",
-            description = " Microsoft's efficient model",
+            description = "Microsoft's efficient model",
             size = "3.8GB",
             sizeBytes = 3_800_000_000,
             family = "Orca",
@@ -251,6 +247,35 @@ class ModelRepository(private val api: OllamaApi = RetrofitClient.getApi()) {
                 Result.success(true)
             } else {
                 Result.failure(Exception("Failed to delete model"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun chat(model: String, messages: List<ChatMessage>): Result<ChatResult> {
+        return try {
+            val request = ChatRequest(
+                model = model,
+                messages = messages.map { com.ollama.mobile.data.model.Message(it.role, it.content) },
+                stream = false
+            )
+            val response = api.chat(request)
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    Result.success(
+                        ChatResult(
+                            message = com.ollama.mobile.domain.model.ResponseMessage(
+                                role = it.message.role,
+                                content = it.message.content
+                            ),
+                            done = it.done,
+                            totalDuration = it.totalDuration
+                        )
+                    )
+                } ?: Result.failure(Exception("Empty response"))
+            } else {
+                Result.failure(Exception("Chat failed: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

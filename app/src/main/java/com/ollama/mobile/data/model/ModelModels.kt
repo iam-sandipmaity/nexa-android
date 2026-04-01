@@ -12,6 +12,17 @@ data class DeleteModelRequest(
     val name: String
 )
 
+data class ChatRequest(
+    val model: String,
+    val messages: List<Message>,
+    val stream: Boolean = false
+)
+
+data class Message(
+    val role: String,
+    val content: String
+)
+
 // Response models
 data class PullResponse(
     val status: String?,
@@ -23,6 +34,21 @@ data class PullResponse(
 
 data class DeleteResponse(
     val status: String?
+)
+
+data class ChatResponse(
+    val model: String,
+    val message: ResponseMessage,
+    @SerializedName("done_reason")
+    val doneReason: String?,
+    val done: Boolean,
+    @SerializedName("total_duration")
+    val totalDuration: Long?
+)
+
+data class ResponseMessage(
+    val role: String,
+    val content: String
 )
 
 // Model info from API
