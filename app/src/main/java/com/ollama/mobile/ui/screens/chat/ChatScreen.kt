@@ -150,15 +150,24 @@ fun ChatScreen(
                             modifier = Modifier.clickable { showModelSelector = true },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Chat", fontWeight = FontWeight.Bold)
                             if (uiState.selectedModel.isNotEmpty()) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp)
+                                val displayName = uiState.selectedModel.removePrefix("offline:")
+                                    .split(":").first()
+                                    .replaceFirstChar { it.uppercase() }
+                                Text(
+                                    text = displayName,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
                                 )
+                            } else {
+                                Text("Select Model", fontWeight = FontWeight.Bold)
                             }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     },
                     navigationIcon = {
