@@ -6,13 +6,16 @@ import com.ollama.mobile.data.repository.DownloadProgress
 import com.ollama.mobile.data.repository.ModelRepository
 import com.ollama.mobile.domain.model.LocalModel
 import com.ollama.mobile.domain.model.OllamaModelInfo
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class ModelBrowserState(
     val availableModels: List<OllamaModelInfo> = emptyList(),
     val localModels: List<LocalModel> = emptyList(),
-    val downloadingModels: Map<String, Float> = emptyEmptyMap(),
+    val downloadingModels: Map<String, Float> = emptyMap(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
@@ -20,8 +23,6 @@ data class ModelBrowserState(
     val selectedFamily: String? = null,
     val isConnected: Boolean = true
 )
-
-private fun <K, V> emptyEmptyMap(): Map<K, V> = emptyMap()
 
 class ModelBrowserViewModel(
     private val repository: ModelRepository = ModelRepository()
@@ -38,13 +39,19 @@ class ModelBrowserViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             
+            // Load available models (always available)
+            _uiState.value = _uiState.value.copy(
+                availableModels = repository.availableModels
+            )
+            
             // Load local models
             repository.getLocalModels().fold(
                 onSuccess = { models ->
                     _uiState.value = _uiState.value.copy(
                         localModels = models,
                         isConnected = true,
-                        isLoading = false
+                        isLoading = false,
+                        error = null
                     )
                 },
                 onFailure = {
@@ -54,11 +61,6 @@ class ModelBrowserViewModel(
                         error = "Cannot connect to Ollama"
                     )
                 }
-            )
-            
-            // Load available models
-            _uiState.value = _uiState.value.copy(
-                availableModels = repository.availableModels
             )
         }
     }
@@ -71,13 +73,15 @@ class ModelBrowserViewModel(
                     _uiState.value = _uiState.value.copy(
                         localModels = models,
                         isRefreshing = false,
-                        error = null
+                        error = null,
+                        isConnected = true
                     )
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(
                         isRefreshing = false,
-                        error = error.message
+                        error = error.message,
+                        isConnected = false
                     )
                 }
             )
@@ -86,25 +90,31 @@ class ModelBrowserViewModel(
 
     fun downloadModel(modelInfo: OllamaModelInfo) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                downloadingModels = _uiState.value.downloadingModels + (modelInfo.name to 0f)
-            )
-            
-            repository.pullModel(modelInfo.name).collect { progress ->
+            try {
                 _uiState.value = _uiState.value.copy(
-                    downloadingModels = _uiState.value.downloadingModels + (modelInfo.name to progress.progress)
+                    downloadingModels = _uiState.value.downloadingModels + (modelInfo.name to 0f)
                 )
                 
-                if (progress.progress >= 1f) {
-                    // Download complete, refresh local models
-                    kotlinx.coroutines.delay(500)
-                    repository.getLocalModels().onSuccess { models ->
-                        _uiState.value = _uiState.value.copy(
-                            localModels = models,
-                            downloadingModels = _uiState.value.downloadingModels - modelInfo.name
-                        )
+                repository.pullModel(modelInfo.name).collect { progress ->
+                    _uiState.value = _uiState.value.copy(
+                        downloadingModels = _uiState.value.downloadingModels + (modelInfo.name to progress.progress)
+                    )
+                    
+                    if (progress.progress >= 1f) {
+                        delay(500)
+                        repository.getLocalModels().onSuccess { models ->
+                            _uiState.value = _uiState.value.copy(
+                                localModels = models,
+                                downloadingModels = _uiState.value.downloadingModels - modelInfo.name
+                            )
+                        }
                     }
                 }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    downloadingModels = _uiState.value.downloadingModels - modelInfo.name,
+                    error = "Download failed: ${e.message}"
+                )
             }
         }
     }

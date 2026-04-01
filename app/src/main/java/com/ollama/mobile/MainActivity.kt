@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -23,6 +24,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
         setContent {
             OllamaMobileTheme {
                 Surface(
@@ -47,7 +49,7 @@ sealed class Screen(val route: String) {
 @Composable
 fun OllamaApp() {
     val navController = rememberNavController()
-
+    
     NavHost(
         navController = navController,
         startDestination = Screen.Models.route

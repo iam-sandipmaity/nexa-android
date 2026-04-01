@@ -10,18 +10,26 @@ object RetrofitClient {
 
     private var baseUrl = "http://localhost:11434/"
 
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
-        level = HttpLoggingInterceptor.Level.BODY
+    private fun createOkHttpClient(): OkHttpClient {
+        val builder = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+        
+        // Add logging in debug mode only
+        try {
+            val loggingInterceptor = HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            }
+            builder.addInterceptor(loggingInterceptor)
+        } catch (e: Exception) {
+            // Ignore if logging interceptor not available
+        }
+        
+        return builder.build()
     }
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .addInterceptor(loggingInterceptor)
-        .connectTimeout(60, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
-        .build()
-
-    private var retrofit: Retrofit = createRetrofit()
+    private var okHttpClient: OkHttpClient = createOkHttpClient()
 
     private fun createRetrofit(): Retrofit {
         return Retrofit.Builder()
@@ -31,10 +39,12 @@ object RetrofitClient {
             .build()
     }
 
-    fun updateBaseUrl(newBaseUrl: String): Retrofit {
+    private var retrofit: Retrofit = createRetrofit()
+
+    fun updateBaseUrl(newBaseUrl: String) {
         baseUrl = if (newBaseUrl.endsWith("/")) newBaseUrl else "$newBaseUrl/"
+        okHttpClient = createOkHttpClient()
         retrofit = createRetrofit()
-        return retrofit
     }
 
     fun getApi(): OllamaApi {
