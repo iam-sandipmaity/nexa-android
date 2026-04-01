@@ -111,8 +111,8 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // Markdown rendering
-    implementation("com.halilibo.compose-richtext:richtext-markdown:0.16.0")
+    // Markdown rendering - using commonmark
+    implementation("com.halilibo.compose-richtext:richtext-commonmark:0.20.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

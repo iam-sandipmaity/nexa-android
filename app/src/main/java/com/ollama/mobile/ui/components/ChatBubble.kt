@@ -14,8 +14,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import com.halilibo.richtext.markdown.Markdown
+import com.halilibo.richtext.commonmark.CommonmarkMarkdown
 import com.halilibo.richtext.ui.RichText
+import com.halilibo.richtext.ui.material3.RichTextTheme
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.ui.theme.AssistantBubble
 import com.ollama.mobile.ui.theme.AssistantBubbleLight
@@ -73,15 +74,16 @@ fun ChatBubble(
                 } else {
                     // Assistant messages render markdown
                     val codeBlockBackground = if (isDark) DarkCodeBackground else LightCodeBackground
-                    RichText(
-                        modifier = Modifier.fillMaxWidth(),
-                        codeBlockBackgroundColor = { codeBlockBackground },
-                        codeBlockTextColor = { if (isDark) Color.White else Color.Black },
-                        codeBlockFontFamily = { FontFamily.Monospace }
+                    RichTextTheme(
+                        codeBlockBackgroundColor = codeBlockBackground,
+                        codeBlockTextColor = if (isDark) Color.White else Color.Black,
+                        codeBlockFontFamily = FontFamily.Monospace
                     ) {
-                        Markdown(
-                            content = message.content
-                        )
+                        RichText(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            CommonmarkMarkdown().render(message.content)
+                        }
                     }
                 }
             }
