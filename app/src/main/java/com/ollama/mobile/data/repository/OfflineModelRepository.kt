@@ -25,9 +25,11 @@ class OfflineModelRepository {
     private val downloadClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.SECONDS) // No timeout for large file downloads
+            .readTimeout(0, TimeUnit.SECONDS)
             .writeTimeout(60, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .followSslRedirects(true)
             .build()
     }
 
@@ -216,6 +218,12 @@ class OfflineModelRepository {
 
             val body = response.body ?: throw IllegalStateException("Empty response body")
             val totalBytes = body.contentLength().takeIf { it > 0L } ?: model.sizeBytes
+            
+            // Check if we got an HTML page instead of the actual file
+            val contentType = response.header("Content-Type") ?: ""
+            if (contentType.contains("text/html", ignoreCase = true)) {
+                throw IllegalStateException("Download returned HTML instead of GGUF file. Make sure the URL points directly to a .gguf file.")
+            }
 
             emit(OfflineDownloadProgress(progress = 0f, status = "Downloading 0 / ${formatBytes(totalBytes)}"))
 

@@ -828,8 +828,20 @@ private fun BrowseModelsTab(
             ImportModelDialog(
                 onDismiss = { showImportDialog = false },
                 onImport = { name, url ->
-                    // Create a custom model entry
-                    val customId = "custom-${name.lowercase().replace(Regex("[^a-z0-9]"), "-")}"
+                    // Convert Hugging Face blob URLs to resolve URLs for direct download
+                    val downloadUrl = when {
+                        url.contains("/blob/") -> {
+                            url.replace("/blob/", "/resolve/") + if (url.contains("?")) "&download=true" else "?download=true"
+                        }
+                        !url.contains("?download") -> {
+                            url + if (url.contains("?")) "&download=true" else "?download=true"
+                        }
+                        else -> url
+                    }
+                    
+                    val fileName = downloadUrl.substringAfterLast("/").split("?").first()
+                    val customId = "custom-${name.lowercase().replace(Regex("[^a-z0-9]"), "-")}-${System.currentTimeMillis()}"
+                    
                     val customModel = OfflineModelInfo(
                         id = customId,
                         name = name,
@@ -839,8 +851,8 @@ private fun BrowseModelsTab(
                         sizeBytes = 0,
                         family = "Custom",
                         minRam = "4GB+ RAM recommended",
-                        sourceUrl = url,
-                        fileName = url.substringAfterLast("/").split("?").first(),
+                        sourceUrl = downloadUrl,
+                        fileName = fileName,
                         sourceLabel = "Hugging Face"
                     )
                     onDownload(customModel)
