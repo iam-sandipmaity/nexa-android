@@ -97,12 +97,13 @@ fun ChatScreen(
                     onValueChange = viewModel::updateInputText,
                     onSend = viewModel::sendMessage,
                     enabled = !uiState.isLoading && uiState.selectedModel.isNotEmpty(),
-                    placeholder = if (uiState.selectedModel.isEmpty()) {
-                        "Select a model first"
-                    } else if (uiState.selectedModel.startsWith("offline:")) {
-                        "Local inference coming soon..."
-                    } else {
-                        "Ask $displayModelName..."
+                    placeholder = when {
+                        uiState.selectedModel.isEmpty() -> "Select a model first"
+                        uiState.selectedModel.startsWith("offline:") -> {
+                            if (uiState.isModelLoaded) "Ask offline model..." 
+                            else "Loading model..."
+                        }
+                        else -> "Ask $displayModelName..."
                     }
                 )
             }
