@@ -1,7 +1,10 @@
 package com.ollama.mobile.ui.screens.chat
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ollama.mobile.data.config.AppConfig
+import com.ollama.mobile.data.repository.ChatHistoryRepository
 import com.ollama.mobile.data.repository.ModelRepository
 import com.ollama.mobile.data.repository.OfflineModelRepository
 import com.ollama.mobile.data.inference.LocalInferenceEngine
@@ -12,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
@@ -22,12 +26,14 @@ data class ChatUiState(
     val isConnected: Boolean = true,
     val isOfflineModel: Boolean = false,
     val isModelLoaded: Boolean = false,
-    val streamingResponse: String = ""
+    val streamingResponse: String = "",
+    val chatId: String? = null
 )
 
 class ChatViewModel(
     private val repository: ModelRepository = ModelRepository(),
-    private val offlineRepository: OfflineModelRepository = OfflineModelRepository()
+    private val offlineRepository: OfflineModelRepository = OfflineModelRepository(),
+    private val chatHistoryRepository: ChatHistoryRepository = AppConfig.getChatHistoryRepository()
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -37,7 +43,10 @@ class ChatViewModel(
     private var streamingJob: Job? = null
 
     fun initializeWithModel(modelName: String) {
-        _uiState.value = _uiState.value.copy(selectedModel = modelName)
+        _uiState.value = _uiState.value.copy(
+            selectedModel = modelName,
+            chatId = UUID.randomUUID().toString()
+        )
         
         if (isOfflineModel(modelName)) {
             _uiState.value = _uiState.value.copy(
@@ -49,6 +58,44 @@ class ChatViewModel(
             return
         }
         checkConnection()
+    }
+
+    fun initializeWithChat(modelName: String, existingChatId: String?) {
+        _uiState.value = _uiState.value.copy(
+            selectedModel = modelName,
+            chatId = existingChatId ?: UUID.randomUUID().toString()
+        )
+
+        if (existingChatId != null && chatHistoryRepository != null) {
+            loadChatHistory(existingChatId)
+        }
+
+        if (isOfflineModel(modelName)) {
+            _uiState.value = _uiState.value.copy(
+                isOfflineModel = true,
+                isConnected = false,
+                error = null
+            )
+            loadOfflineModel(modelName)
+            return
+        }
+        checkConnection()
+    }
+
+    private fun loadChatHistory(chatId: String) {
+        viewModelScope.launch {
+            try {
+                val chat = chatHistoryRepository.getChatById(chatId).first()
+                if (chat != null) {
+                    _uiState.value = _uiState.value.copy(
+                        messages = chat.messages,
+                        selectedModel = chat.modelName
+                    )
+                }
+            } catch (e: Exception) {
+                // Ignore errors loading history
+            }
+        }
     }
 
     private fun loadOfflineModel(modelName: String) {
@@ -244,9 +291,32 @@ class ChatViewModel(
     fun clearChat() {
         _uiState.value = _uiState.value.copy(messages = emptyList())
     }
+
+    fun saveChatToHistory() {
+        val chatId = _uiState.value.chatId ?: return
+        val modelName = _uiState.value.selectedModel
+        val messages = _uiState.value.messages
+
+        if (messages.isEmpty() || modelName.isEmpty()) return
+
+        viewModelScope.launch {
+            try {
+                chatHistoryRepository.saveChat(
+                    ChatHistoryRepository.ChatHistoryEntry(
+                        id = chatId,
+                        modelName = modelName,
+                        messages = messages
+                    )
+                )
+            } catch (e: Exception) {
+                // Ignore save errors
+            }
+        }
+    }
     
     override fun onCleared() {
         super.onCleared()
+        saveChatToHistory()
         streamingJob?.cancel()
         inferenceEngine?.free()
     }

@@ -2,12 +2,18 @@ package com.ollama.mobile.data.config
 
 import android.content.Context
 import com.ollama.mobile.BuildConfig
+import com.ollama.mobile.data.repository.ChatHistoryRepository
 
 object AppConfig {
     private const val PREFS_NAME = "ollama_mobile_config"
     private const val KEY_BASE_URL = "base_url"
     private const val KEY_API_KEY = "api_key"
+    private const val KEY_THEME_MODE = "theme_mode"
     private const val DEFAULT_BASE_URL = "https://ollama.com/"
+    
+    const val THEME_SYSTEM = 0
+    const val THEME_LIGHT = 1
+    const val THEME_DARK = 2
 
     private var initialized = false
     private lateinit var appContext: Context
@@ -20,6 +26,11 @@ object AppConfig {
     }
 
     private fun prefs() = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    fun getChatHistoryRepository(): ChatHistoryRepository {
+        ensureInitialized()
+        return ChatHistoryRepository(appContext)
+    }
 
     fun getBaseUrl(): String {
         ensureInitialized()
@@ -43,7 +54,17 @@ object AppConfig {
     }
 
     fun hasApiKey(): Boolean = getApiKey().isNotBlank()
-
+    
+    fun getThemeMode(): Int {
+        ensureInitialized()
+        return prefs().getInt(KEY_THEME_MODE, THEME_SYSTEM)
+    }
+    
+    fun setThemeMode(mode: Int) {
+        ensureInitialized()
+        prefs().edit().putInt(KEY_THEME_MODE, mode).apply()
+    }
+    
     fun getAppContext(): Context {
         ensureInitialized()
         return appContext

@@ -26,13 +26,21 @@ import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Diamond
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -68,6 +76,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.familyLogos
 import com.ollama.mobile.domain.model.OfflineModelInfo
 import com.ollama.mobile.domain.model.OllamaModelInfo
 
@@ -75,6 +84,7 @@ import com.ollama.mobile.domain.model.OllamaModelInfo
 fun ModelBrowserScreen(
     onNavigateToChat: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit,
     viewModel: ModelBrowserViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -92,6 +102,9 @@ fun ModelBrowserScreen(
             TopAppBar(
                 title = { Text("Models") },
                 actions = {
+                    IconButton(onClick = onNavigateToHistory) {
+                        Icon(Icons.Default.History, contentDescription = "Chat History")
+                    }
                     IconButton(onClick = viewModel::refresh) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
@@ -458,6 +471,9 @@ private fun ModelHeader(
     title: String,
     description: String
 ) {
+    val familyLower = family.lowercase()
+    val logo = familyLogos[familyLower] ?: Icons.Default.Psychology
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -469,11 +485,11 @@ private fun ModelHeader(
                 .background(getFamilyColor(family)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = family.take(1).uppercase().ifBlank { "?" },
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
+            Icon(
+                imageVector = logo,
+                contentDescription = family,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
             )
         }
 

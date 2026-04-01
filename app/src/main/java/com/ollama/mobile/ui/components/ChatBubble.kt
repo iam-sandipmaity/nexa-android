@@ -9,12 +9,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ollama.mobile.domain.model.ChatMessage
@@ -23,8 +28,10 @@ import com.ollama.mobile.ui.theme.AssistantBubbleLight
 import com.ollama.mobile.ui.theme.UserBubble
 import com.ollama.mobile.ui.theme.UserBubbleLight
 
-private val DarkCodeBackground = Color(0xFF2D2D2D)
-private val LightCodeBackground = Color(0xFFEEEEEE)
+private val DarkCodeBackground = Color(0xFF1E1E1E)
+private val LightCodeBackground = Color(0xFFF5F5F5)
+private val DarkHeaderColor = Color(0xFF81D4FA)
+private val LightHeaderColor = Color(0xFF1976D2)
 
 @Composable
 fun ChatBubble(
@@ -45,6 +52,8 @@ fun ChatBubble(
     } else {
         if (isDark) Color.White else Color.Black
     }
+    
+    val headerColor = if (isDark) DarkHeaderColor else LightHeaderColor
     
     val shape = if (isUser) {
         RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
@@ -67,17 +76,16 @@ fun ChatBubble(
         ) {
             SelectionContainer {
                 if (isUser) {
-                    // User messages are plain text
                     Text(
                         text = message.content,
                         color = textColor,
                         style = MaterialTheme.typography.bodyLarge
                     )
                 } else {
-                    // Assistant messages - render with markdown-like formatting
-                    MarkdownText(
+                    RichMarkdownText(
                         content = message.content,
                         textColor = textColor,
+                        headerColor = headerColor,
                         codeBackground = if (isDark) DarkCodeBackground else LightCodeBackground
                     )
                 }
@@ -87,99 +95,311 @@ fun ChatBubble(
 }
 
 @Composable
-private fun MarkdownText(
+private fun RichMarkdownText(
     content: String,
     textColor: Color,
+    headerColor: Color,
     codeBackground: Color
 ) {
-    val paragraphs = remember(content) { content.split("\n\n") }
+    val lines = remember(content) { content.split("\n") }
     
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        paragraphs.forEach { paragraph ->
-            if (paragraph.isBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-            } else {
-                RenderParagraph(
-                    paragraph = paragraph.trim(),
-                    textColor = textColor,
-                    codeBackground = codeBackground
-                )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
+            
+            when {
+                // Code block (```)
+                line.startsWith("```") -> {
+                    val codeLines = mutableListOf<String>()
+                    i++
+                    while (i < lines.size && !lines[i].startsWith("```")) {
+                        codeLines.add(lines[i])
+                        i++
+                    }
+                    CodeBlock(
+                        code = codeLines.joinToString("\n").trimEnd(),
+                        codeBackground = codeBackground,
+                        textColor = textColor
+                    )
+                }
+                
+                // Headers
+                line.startsWith("### ") -> {
+                    HeaderText(
+                        text = line.removePrefix("### "),
+                        level = 3,
+                        color = headerColor,
+                        textColor = textColor
+                    )
+                }
+                line.startsWith("## ") -> {
+                    HeaderText(
+                        text = line.removePrefix("## "),
+                        level = 2,
+                        color = headerColor,
+                        textColor = textColor
+                    )
+                }
+                line.startsWith("# ") -> {
+                    HeaderText(
+                        text = line.removePrefix("# "),
+                        level = 1,
+                        color = headerColor,
+                        textColor = textColor
+                    )
+                }
+                
+                // Unordered list
+                line.trimStart().startsWith("- ") || line.trimStart().startsWith("* ") -> {
+                    BulletPoint(
+                        text = line.trimStart().removePrefix("- ").removePrefix("* "),
+                        textColor = textColor,
+                        bulletColor = headerColor
+                    )
+                }
+                
+                // Ordered list
+                line.matches(Regex("^\\d+\\.\\s+.*")) -> {
+                    val number = line.substringBefore(".")
+                    val text = line.substringAfter(". ")
+                    OrderedListItem(
+                        number = number,
+                        text = text,
+                        textColor = textColor,
+                        numberColor = headerColor
+                    )
+                }
+                
+                // Horizontal rule
+                line.trim() == "---" || line.trim() == "***" || line.trim() == "___" -> {
+                    HorizontalLine(color = textColor.copy(alpha = 0.3f))
+                }
+                
+                // Empty line
+                line.isBlank() -> {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                
+                // Regular paragraph with inline formatting
+                else -> {
+                    InlineFormattedText(
+                        text = line,
+                        textColor = textColor,
+                        codeBackground = codeBackground,
+                        headerColor = headerColor
+                    )
+                }
             }
+            i++
         }
     }
 }
 
 @Composable
-private fun RenderParagraph(
-    paragraph: String,
-    textColor: Color,
-    codeBackground: Color
+private fun HeaderText(
+    text: String,
+    level: Int,
+    color: Color,
+    textColor: Color
 ) {
-    // Check if it's a code block
-    if (paragraph.startsWith("```")) {
-        val codeContent = paragraph.removePrefix("```").trim()
-        val lines = codeContent.split("\n")
-        val language = if (lines.first().isNotBlank() && !lines.first().contains(" ")) {
-            lines.first()
-        } else null
-        val actualCode = if (language != null) lines.drop(1).joinToString("\n") else codeContent
-        
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .background(codeBackground)
-                .padding(12.dp)
-        ) {
-            Text(
-                text = actualCode,
-                color = textColor.copy(alpha = 0.9f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
-                lineHeight = 18.sp
-            )
-        }
-        return
+    val fontSize = when (level) {
+        1 -> 22.sp
+        2 -> 18.sp
+        else -> 16.sp
+    }
+    val fontWeight = when (level) {
+        1 -> FontWeight.Bold
+        2 -> FontWeight.SemiBold
+        else -> FontWeight.Medium
     }
     
-    // Check for inline code
-    if (paragraph.contains("`")) {
-        val parts = paragraph.split("`")
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            parts.forEachIndexed { index, part ->
-                if (index % 2 == 1) {
-                    // Inline code
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(codeBackground)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = part,
-                            color = textColor,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp
-                        )
+    Text(
+        text = text,
+        color = color,
+        fontSize = fontSize,
+        fontWeight = fontWeight
+    )
+}
+
+@Composable
+private fun CodeBlock(
+    code: String,
+    codeBackground: Color,
+    textColor: Color
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(codeBackground)
+            .padding(12.dp)
+    ) {
+        Text(
+            text = code,
+            color = textColor.copy(alpha = 0.9f),
+            fontFamily = FontFamily.Monospace,
+            fontSize = 13.sp,
+            lineHeight = 18.sp
+        )
+    }
+}
+
+@Composable
+private fun BulletPoint(
+    text: String,
+    textColor: Color,
+    bulletColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "•",
+            color = bulletColor,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        InlineFormattedText(
+            text = text,
+            textColor = textColor,
+            codeBackground = Color.Transparent,
+            headerColor = bulletColor
+        )
+    }
+}
+
+@Composable
+private fun OrderedListItem(
+    number: String,
+    text: String,
+    textColor: Color,
+    numberColor: Color
+) {
+    Row(
+        verticalAlignment = Alignment.Top,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = "$number.",
+            color = numberColor,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(end = 8.dp)
+        )
+        InlineFormattedText(
+            text = text,
+            textColor = textColor,
+            codeBackground = Color.Transparent,
+            headerColor = numberColor
+        )
+    }
+}
+
+@Composable
+private fun HorizontalLine(color: Color) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .height(1.dp)
+            .background(color)
+    )
+}
+
+@Composable
+private fun InlineFormattedText(
+    text: String,
+    textColor: Color,
+    codeBackground: Color,
+    headerColor: Color
+) {
+    val annotatedString = buildAnnotatedString {
+        var i = 0
+        while (i < text.length) {
+            when {
+                // Code inline (`code`)
+                text[i] == '`' -> {
+                    val end = text.indexOf('`', i + 1)
+                    if (end != -1) {
+                        withStyle(
+                            SpanStyle(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 13.sp,
+                                background = codeBackground.copy(alpha = 0.3f),
+                                color = textColor.copy(alpha = 0.9f)
+                            )
+                        ) {
+                            append(text.substring(i + 1, end))
+                        }
+                        i = end + 1
+                    } else {
+                        append(text[i])
+                        i++
                     }
-                } else {
-                    Text(
-                        text = part,
-                        color = textColor,
-                        style = MaterialTheme.typography.bodyLarge
-                    )
+                }
+                
+                // Bold (**text** or __text__)
+                (text.startsWith("**", i) || text.startsWith("__", i)) -> {
+                    val marker = if (text.startsWith("**", i)) "**" else "__"
+                    val end = text.indexOf(marker, i + marker.length)
+                    if (end != -1) {
+                        withStyle(
+                            SpanStyle(fontWeight = FontWeight.Bold)
+                        ) {
+                            append(text.substring(i + marker.length, end))
+                        }
+                        i = end + marker.length
+                    } else {
+                        append(text[i])
+                        i++
+                    }
+                }
+                
+                // Italic (*text* or _text_)
+                (text[i] == '*' && i + 1 < text.length && text[i + 1] != '*') ||
+                (text[i] == '_' && i + 1 < text.length && text[i + 1] != '_') -> {
+                    val end = text.indexOf(text[i], i + 1)
+                    if (end != -1 && (end == i + 1 || text[end - 1] != text[i])) {
+                        withStyle(
+                            SpanStyle(fontStyle = FontStyle.Italic)
+                        ) {
+                            append(text.substring(i + 1, end))
+                        }
+                        i = end + 1
+                    } else {
+                        append(text[i])
+                        i++
+                    }
+                }
+                
+                // Strikethrough (~~text~~)
+                text.startsWith("~~", i) -> {
+                    val end = text.indexOf("~~", i + 2)
+                    if (end != -1) {
+                        withStyle(
+                            SpanStyle(textDecoration = TextDecoration.LineThrough)
+                        ) {
+                            append(text.substring(i + 2, end))
+                        }
+                        i = end + 2
+                    } else {
+                        append(text[i])
+                        i++
+                    }
+                }
+                
+                else -> {
+                    append(text[i])
+                    i++
                 }
             }
         }
-        return
     }
     
-    // Regular text with optional inline formatting
     Text(
-        text = paragraph,
+        text = annotatedString,
         color = textColor,
         style = MaterialTheme.typography.bodyLarge
     )

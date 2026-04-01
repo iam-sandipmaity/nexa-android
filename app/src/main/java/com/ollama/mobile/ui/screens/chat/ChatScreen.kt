@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
@@ -26,8 +27,10 @@ import com.ollama.mobile.ui.components.MessageInput
 @Composable
 fun ChatScreen(
     selectedModel: String = "",
+    existingChatId: String? = null,
     onNavigateBack: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit = {},
     viewModel: ChatViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -37,9 +40,9 @@ fun ChatScreen(
         uiState.selectedModel.removePrefix("offline:")
     }
 
-    LaunchedEffect(selectedModel) {
+    LaunchedEffect(selectedModel, existingChatId) {
         if (selectedModel.isNotEmpty()) {
-            viewModel.initializeWithModel(selectedModel)
+            viewModel.initializeWithChat(selectedModel, existingChatId)
         }
     }
 
@@ -73,6 +76,9 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToHistory) {
+                        Icon(Icons.Filled.History, contentDescription = "Chat History")
+                    }
                     if (uiState.messages.isNotEmpty()) {
                         IconButton(onClick = viewModel::clearChat) {
                             Icon(Icons.Filled.Delete, contentDescription = "Clear chat")
@@ -83,7 +89,7 @@ fun ChatScreen(
                             Icon(Icons.Filled.Stop, contentDescription = "Stop generation")
                         }
                     } else {
-                        IconButton(onClick = { viewModel.initializeWithModel(uiState.selectedModel) }) {
+                        IconButton(onClick = { viewModel.initializeWithChat(uiState.selectedModel, null) }) {
                             Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
                         }
                     }

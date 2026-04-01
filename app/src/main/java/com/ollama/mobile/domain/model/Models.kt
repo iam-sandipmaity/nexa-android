@@ -1,5 +1,9 @@
 package com.ollama.mobile.domain.model
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+
 data class OllamaModelInfo(
     val id: String,
     val name: String,
@@ -9,7 +13,10 @@ data class OllamaModelInfo(
     val sizeBytes: Long,
     val family: String,
     val minRam: String
-)
+) {
+    val logo: ImageVector
+        get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
+}
 
 data class OfflineModelInfo(
     val id: String,
@@ -23,6 +30,22 @@ data class OfflineModelInfo(
     val sourceUrl: String,
     val fileName: String,
     val sourceLabel: String
+) {
+    val logo: ImageVector
+        get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
+}
+
+val familyLogos = mapOf(
+    "llama" to Icons.Default.Pets,
+    "llama3" to Icons.Default.Pets,
+    "gemma" to Icons.Default.Diamond,
+    "mistral" to Icons.Default.Cloud,
+    "mixtral" to Icons.Default.Cloud,
+    "qwen" to Icons.Default.AutoAwesome,
+    "phi" to Icons.Default.Memory,
+    "codellama" to Icons.Default.Code,
+    "deepseek" to Icons.Default.Psychology,
+    "default" to Icons.Default.Psychology
 )
 
 data class DownloadedOfflineModel(

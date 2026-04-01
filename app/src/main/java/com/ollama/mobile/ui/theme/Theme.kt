@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.ollama.mobile.data.config.AppConfig
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -29,10 +30,18 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun OllamaMobileTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
+    val systemDark = isSystemInDarkTheme()
+    
+    val themeMode = try { AppConfig.getThemeMode() } catch (e: Exception) { AppConfig.THEME_SYSTEM }
+    
+    val darkTheme = when (themeMode) {
+        AppConfig.THEME_DARK -> true
+        AppConfig.THEME_LIGHT -> false
+        else -> systemDark
+    }
     
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
