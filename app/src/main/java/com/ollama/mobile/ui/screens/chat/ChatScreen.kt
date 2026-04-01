@@ -427,7 +427,7 @@ private fun ApiKeySetupDialog(
                 TextButton(
                     onClick = {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ollama.com/"))
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://ollama.com/settings/keys"))
                             context.startActivity(intent)
                         } catch (_: Exception) {}
                     }
