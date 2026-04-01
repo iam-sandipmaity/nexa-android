@@ -82,16 +82,16 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Create debug keystore
+        run: |
+          mkdir -p app
+          keytool -genkeypair -v -keystore app/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
       - name: Build release APK
         run: ./gradlew assembleRelease --no-daemon
-        env:
-          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4
