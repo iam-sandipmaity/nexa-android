@@ -113,6 +113,7 @@ dependencies {
 
     // Markdown rendering - using commonmark
     implementation("com.halilibo.compose-richtext:richtext-commonmark:0.20.0")
+    implementation("com.halilibo.compose-richtext:richtext-ui:0.20.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

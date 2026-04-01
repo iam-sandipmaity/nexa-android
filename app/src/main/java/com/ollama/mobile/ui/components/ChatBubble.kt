@@ -8,15 +8,13 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
-import com.halilibo.richtext.commonmark.CommonmarkMarkdown
+import com.halilibo.richtext.commonmark.Markdown
 import com.halilibo.richtext.ui.RichText
-import com.halilibo.richtext.ui.material3.RichTextTheme
+import com.halilibo.richtext.ui.material3.Material3RichTextDefaults
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.ui.theme.AssistantBubble
 import com.ollama.mobile.ui.theme.AssistantBubbleLight
@@ -74,16 +72,14 @@ fun ChatBubble(
                 } else {
                     // Assistant messages render markdown
                     val codeBlockBackground = if (isDark) DarkCodeBackground else LightCodeBackground
-                    RichTextTheme(
-                        codeBlockBackgroundColor = codeBlockBackground,
-                        codeBlockTextColor = if (isDark) Color.White else Color.Black,
-                        codeBlockFontFamily = FontFamily.Monospace
+                    RichText(
+                        modifier = Modifier.fillMaxWidth(),
+                        defaults = Material3RichTextDefaults(
+                            codeBlockBackgroundColor = codeBlockBackground,
+                            codeBlockTextColor = if (isDark) Color.White else Color.Black
+                        )
                     ) {
-                        RichText(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            CommonmarkMarkdown().render(message.content)
-                        }
+                        Markdown(content = message.content)
                     }
                 }
             }
