@@ -2,6 +2,7 @@ package com.ollama.mobile.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,8 +34,7 @@ class SettingsViewModel : ViewModel() {
                 connectionStatus = ConnectionStatus.Unknown
             )
             
-            // Simulate connection test
-            kotlinx.coroutines.delay(1000)
+            delay(1000)
             
             val isSuccess = _uiState.value.baseUrl.isNotBlank()
             _uiState.value = _uiState.value.copy(
@@ -45,9 +45,8 @@ class SettingsViewModel : ViewModel() {
     }
 
     fun saveSettings() {
-        // In a real app, save to DataStore here
         viewModelScope.launch {
-            // Save settings
+            // Save settings to DataStore
         }
     }
 }

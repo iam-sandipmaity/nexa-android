@@ -4,30 +4,43 @@ A beautiful Android app to **browse, download, and chat with AI models** using O
 
 ## Features
 
-### 🤖 Model Browser
+### Model Browser
 - Browse 18+ popular AI models (Llama, Gemma, Mistral, Qwen, Phi, etc.)
 - Search and filter models by family
 - See model details (size, RAM requirements, description)
-- **Download models directly** from the app
+- Download models directly from the app
 - Track download progress
 
-### 💬 Chat Interface
+### Chat Interface
 - Chat with any downloaded model
 - Beautiful chat bubbles with Material Design 3
 - Dark and light theme support
 - Clear chat history option
 
-### 📦 Model Management
+### Model Management
 - View all downloaded models
 - Delete models to free up space
 - See model size and info
 - Quick access to chat with any model
 
-## Popular Models Available
+## Download APK
+
+### Debug APK (Latest)
+Download from GitHub Actions artifacts after any push/merge:
+1. Go to **Actions** tab
+2. Click on any workflow run
+3. Click on **debug-apk** or **ollama-mobile-debug.apk** artifact
+4. Download and install on your phone
+
+### Release APK (Main branch)
+Built automatically when code is merged to `main` branch.
+Find it in the Actions artifacts as **ollama-mobile-release.apk**.
+
+## Popular Models
 
 | Model | Size | Description |
 |-------|------|-------------|
-| TinyLlama | 637MB | Ultra-lightweight, great for testing |
+| TinyLlama | 637MB | Ultra-lightweight, 1.1B params |
 | Phi-3.5 | 2.2GB | Microsoft's efficient small model |
 | Llama 3.2 | 2.0GB | Latest Meta model |
 | Gemma 2B | 1.6GB | Google's efficient model |
@@ -40,21 +53,16 @@ A beautiful Android app to **browse, download, and chat with AI models** using O
 
 ### Prerequisites
 1. Install **Ollama** on your computer: [ollama.ai](https://ollama.ai)
-2. Ensure Ollama is running: `ollama serve`
+2. Run Ollama: `ollama serve`
 
 ### For Local Network Access
 ```bash
-# Find your computer's IP address
+# Find your IP address
 # Windows: ipconfig
 # Mac/Linux: ifconfig
 
 # Enter URL in app: http://192.168.1.100:11434/
 ```
-
-### For Android (Ollama on Phone)
-Currently, Ollama runs on desktop. For mobile-only usage, you can:
-- Use Termux to run Ollama on Android
-- Connect to a remote Ollama server
 
 ## Build
 
@@ -62,43 +70,34 @@ Currently, Ollama runs on desktop. For mobile-only usage, you can:
 # Debug build
 ./gradlew assembleDebug
 
-# Release build
+# Release build  
 ./gradlew assembleRelease
 ```
 
-APK will be at: `app/build/outputs/apk/debug/app-debug.apk`
+APK location: `app/build/outputs/apk/debug/app-debug.apk`
 
 ## Tech Stack
 
-- **Kotlin** - Modern Android development
-- **Jetpack Compose** - Declarative UI
-- **Material Design 3** - Beautiful, modern design
-- **Retrofit** - Network requests
-- **MVVM Architecture** - Clean separation
-- **GitHub Actions** - CI/CD pipeline
-
-## Screenshots
-
-The app features:
-- 🎨 Clean, modern Material Design 3 UI
-- 🌙 Dark mode support
-- 📱 Mobile-optimized layouts
-- 🔍 Easy model search
-- 📊 Download progress tracking
+- Kotlin
+- Jetpack Compose
+- Material Design 3
+- Retrofit for networking
+- MVVM Architecture
+- GitHub Actions CI/CD
 
 ## How It Works
 
 1. **Browse Models** - See all available models with descriptions
 2. **Download** - Tap download to get any model (via Ollama API)
 3. **Chat** - Once downloaded, tap "Chat" to start conversing
-4. **Manage** - View/delete models from the Downloaded section
+4. **Delete** - Remove models to free up space
 
-## GitHub Actions CI/CD
+## CI/CD
 
-- ✅ Automatic linting
-- ✅ Unit tests
-- ✅ Debug APK build
-- ✅ Release APK build on merge to main
+- ✅ Automatic builds on push
+- ✅ Debug APK for testing
+- ✅ Release APK on main branch merge
+- ✅ Direct artifact downloads
 
 ## License
 

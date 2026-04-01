@@ -2,13 +2,14 @@
 
 package com.ollama.mobile.ui.screens.model
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -17,7 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ollama.mobile.domain.model.LocalModel
@@ -29,11 +32,19 @@ fun ModelBrowserScreen(
     viewModel: ModelBrowserViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Models") },
+                title = { Text("Ollama Models") },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -43,7 +54,8 @@ fun ModelBrowserScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -51,15 +63,13 @@ fun ModelBrowserScreen(
                 .padding(paddingValues)
         ) {
             // Connection Status Banner
-            if (!uiState.isConnected) {
-                ConnectionBanner(
-                    message = "Cannot connect to Ollama. Make sure it's running.",
-                    onRetry = { viewModel.loadModels() }
-                )
-            }
+            ConnectionBanner(
+                isConnected = uiState.isConnected,
+                onRetry = { viewModel.loadModels() }
+            )
 
-            // Search Bar
-            SearchBar(
+            // Search Field
+            SearchField(
                 query = uiState.searchQuery,
                 onQueryChange = viewModel::updateSearchQuery,
                 modifier = Modifier
@@ -108,11 +118,12 @@ fun ModelBrowserScreen(
 
 @Composable
 private fun ConnectionBanner(
-    message: String,
+    isConnected: Boolean,
     onRetry: () -> Unit
 ) {
     Surface(
-        color = MaterialTheme.colorScheme.errorContainer,
+        color = if (isConnected) MaterialTheme.colorScheme.primaryContainer 
+                else MaterialTheme.colorScheme.errorContainer,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -120,30 +131,34 @@ private fun ConnectionBanner(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                Icons.Default.WifiOff,
+                if (isConnected) Icons.Default.CloudDone else Icons.Default.CloudOff,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer
+                tint = if (isConnected) MaterialTheme.colorScheme.primary 
+                       else MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = message,
+                text = if (isConnected) "Connected to Ollama" else "Not connected to Ollama",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = onRetry) {
-                Text("Retry")
+            if (!isConnected) {
+                TextButton(onClick = onRetry) {
+                    Text("Retry")
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SearchBar(
+private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+    
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
@@ -158,6 +173,8 @@ private fun SearchBar(
             }
         },
         singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
         shape = RoundedCornerShape(12.dp)
     )
 }
@@ -217,7 +234,6 @@ private fun LocalModelsSection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AvailableModelsSection(
     models: List<OllamaModelInfo>,
@@ -254,7 +270,6 @@ private fun AvailableModelsSection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LocalModelCard(
     model: LocalModel,
@@ -309,7 +324,7 @@ private fun LocalModelCard(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Model") },
-            text = { Text("Are you sure you want to delete ${model.name}? This will free up ${model.formattedSize}.") },
+            text = { Text("Delete ${model.name}? This will free up ${model.formattedSize}.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -329,7 +344,6 @@ private fun LocalModelCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AvailableModelCard(
     model: OllamaModelInfo,
@@ -352,7 +366,6 @@ private fun AvailableModelCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Family icon
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -387,24 +400,42 @@ private fun AvailableModelCard(
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Info Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                InfoChip(
-                    icon = Icons.Default.Storage,
-                    text = model.size
-                )
-                InfoChip(
-                    icon = Icons.Default.Memory,
-                    text = "RAM: ${model.minRam}"
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Storage,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = model.size,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Memory,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "RAM: ${model.minRam}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.height(12.dp))
             
-            // Action Button
             when {
                 isDownloading -> {
                     DownloadProgressIndicator(progress = downloadProgress)
@@ -435,29 +466,6 @@ private fun AvailableModelCard(
 }
 
 @Composable
-private fun InfoChip(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-        )
-    }
-}
-
-@Composable
 private fun DownloadProgressIndicator(progress: Float) {
     Column {
         Row(
@@ -476,7 +484,7 @@ private fun DownloadProgressIndicator(progress: Float) {
         }
         Spacer(modifier = Modifier.height(4.dp))
         LinearProgressIndicator(
-            progress = progress,
+            progress = { progress },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(6.dp)

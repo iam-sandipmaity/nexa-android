@@ -32,10 +32,15 @@ fun OllamaMobileTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    
     val colorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            try {
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } catch (e: Exception) {
+                if (darkTheme) DarkColorScheme else LightColorScheme
+            }
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
@@ -45,9 +50,11 @@ fun OllamaMobileTheme(
     if (!view.isInEditMode) {
         SideEffect {
             try {
-                val window = (view.context as Activity).window
-                window.statusBarColor = colorScheme.primary.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+                val window = (view.context as? Activity)?.window
+                window?.let {
+                    it.statusBarColor = colorScheme.primary.toArgb()
+                    WindowCompat.getInsetsController(it, view).isAppearanceLightStatusBars = !darkTheme
+                }
             } catch (e: Exception) {
                 // Ignore status bar errors
             }
