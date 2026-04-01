@@ -413,12 +413,14 @@ private fun MessageInputBox(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Bottom
         ) {
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp, max = 120.dp),
                 placeholder = { Text("Message...") },
                 enabled = enabled,
                 maxLines = 4,
@@ -434,12 +436,7 @@ private fun MessageInputBox(
             
             Spacer(modifier = Modifier.width(8.dp))
             
-            IconButton(
-                onClick = {
-                    focusManager.clearFocus()
-                    onSend()
-                },
-                enabled = enabled && value.isNotBlank(),
+            Box(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(24.dp))
@@ -449,6 +446,14 @@ private fun MessageInputBox(
                         else 
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
                     )
+                    .clickable(
+                        enabled = enabled && value.isNotBlank(),
+                        onClick = {
+                            focusManager.clearFocus()
+                            onSend()
+                        }
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Default.Send,
@@ -456,7 +461,8 @@ private fun MessageInputBox(
                     tint = if (enabled && value.isNotBlank()) 
                         MaterialTheme.colorScheme.onPrimary 
                     else 
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
