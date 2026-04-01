@@ -98,6 +98,7 @@ fun ChatScreen(
                     AppConfig.updateBaseUrl("https://ollama.com/")
                 }
                 showApiKeyDialog = false
+                viewModel.refreshModels()
             },
             onSkip = {
                 showApiKeyDialog = false
@@ -107,6 +108,7 @@ fun ChatScreen(
     }
 
     if (showModelSelector) {
+        viewModel.refreshModels()
         ModelSelectorDialog(
             availableModels = uiState.availableModels,
             downloadedModels = uiState.downloadedModels,
@@ -746,9 +748,41 @@ private fun ModelSelectorDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 LazyColumn(
-                    modifier = Modifier.heightIn(max = 300.dp)
+                    modifier = Modifier.heightIn(max = 400.dp)
                 ) {
+                    if (filteredCloudModels.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Cloud Models",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
+                        
+                        items(filteredCloudModels) { model ->
+                            ModelListItem(
+                                name = model.displayName,
+                                subtitle = "${model.size} • ${model.family}",
+                                isSelected = currentModel == model.name,
+                                icon = model.logo,
+                                onClick = { onModelSelected(model.name) }
+                            )
+                        }
+                    }
+                    
                     if (filteredDownloadedModels.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Downloaded Models",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                        }
                         items(filteredDownloadedModels) { model ->
                             ModelListItem(
                                 name = model.displayName,
@@ -756,31 +790,6 @@ private fun ModelSelectorDialog(
                                 isSelected = currentModel == "offline:${model.id}",
                                 icon = model.logo,
                                 onClick = { onModelSelected("offline:${model.id}") }
-                            )
-                        }
-                    }
-                    
-                    if (filteredCloudModels.isNotEmpty()) {
-                        if (filteredDownloadedModels.isNotEmpty()) {
-                            item {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Cloud Models",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                        }
-                        
-                        items(filteredCloudModels.take(10)) { model ->
-                            ModelListItem(
-                                name = model.displayName,
-                                subtitle = "${model.size} • ${model.family}",
-                                isSelected = currentModel == model.name,
-                                icon = model.logo,
-                                onClick = { onModelSelected(model.name) }
                             )
                         }
                     }

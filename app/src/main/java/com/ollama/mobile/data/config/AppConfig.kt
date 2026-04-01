@@ -2,6 +2,7 @@ package com.ollama.mobile.data.config
 
 import android.content.Context
 import com.ollama.mobile.BuildConfig
+import com.ollama.mobile.data.api.RetrofitClient
 import com.ollama.mobile.data.repository.ChatHistoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +68,7 @@ object AppConfig {
     fun updateApiKey(apiKey: String) {
         ensureInitialized()
         prefs().edit().putString(KEY_API_KEY, apiKey.trim()).apply()
+        RetrofitClient.updateApiKey(apiKey.trim())
     }
 
     fun hasApiKey(): Boolean = getApiKey().isNotBlank()

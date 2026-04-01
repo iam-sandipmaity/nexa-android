@@ -54,7 +54,8 @@ class ChatViewModel(
     private fun loadAvailableModels() {
         viewModelScope.launch {
             try {
-                val cloudModels = repository.getAvailableModels().getOrNull() ?: emptyList()
+                val cloudResult = repository.getAvailableModels()
+                val cloudModels = cloudResult.getOrNull() ?: repository.getFallbackModels()
                 val downloadedModels = offlineRepository.getDownloadedModels()
                 val history = chatHistoryRepository.getAllHistory().first()
                 _uiState.value = _uiState.value.copy(
@@ -63,7 +64,13 @@ class ChatViewModel(
                     chatHistory = history
                 )
             } catch (e: Exception) {
-                // Ignore errors loading models
+                val downloadedModels = offlineRepository.getDownloadedModels()
+                val history = try { chatHistoryRepository.getAllHistory().first() } catch (_: Exception) { emptyList() }
+                _uiState.value = _uiState.value.copy(
+                    availableModels = repository.getFallbackModels(),
+                    downloadedModels = downloadedModels,
+                    chatHistory = history
+                )
             }
         }
     }
