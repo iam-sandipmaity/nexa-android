@@ -62,6 +62,7 @@ fun ChatScreen(
     var apiKeyInput by remember { mutableStateOf("") }
     var modelSearchQuery by remember { mutableStateOf("") }
     var inputText by remember { mutableStateOf("") }
+    var showNoModelWarning by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val hasApiKey = AppConfig.hasApiKey()
@@ -92,6 +93,28 @@ fun ChatScreen(
         BackHandler {
             drawerState.value = false
         }
+    }
+
+    if (showNoModelWarning) {
+        AlertDialog(
+            onDismissRequest = { showNoModelWarning = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("No Model Selected") },
+            text = { Text("Please select a model to start chatting. Tap the model name at the top or go to Models to download one.") },
+            confirmButton = {
+                TextButton(onClick = { showNoModelWarning = false }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showNoModelWarning = false
+                    showModelSelector = true
+                }) {
+                    Text("Select Model")
+                }
+            }
+        )
     }
 
     if (showApiKeyDialog) {
@@ -203,61 +226,59 @@ fun ChatScreen(
                         )
                     }
             ) {
-                if (uiState.selectedModel.isEmpty()) {
-                    EmptyStateSection(
-                        onSelectModel = { showModelSelector = true },
-                        onNavigateToModels = onNavigateToModels
+                if (uiState.error != null && !uiState.isLoading) {
+                    ErrorBanner(
+                        error = uiState.error!!,
+                        onDismiss = viewModel::clearError
                     )
-                } else {
-                    if (uiState.error != null && !uiState.isLoading) {
-                        ErrorBanner(
-                            error = uiState.error!!,
-                            onDismiss = viewModel::clearError
-                        )
+                }
+
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    state = listState,
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(uiState.messages) { message ->
+                        ChatBubble(message = message)
                     }
 
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                        state = listState,
-                        contentPadding = PaddingValues(vertical = 8.dp)
-                    ) {
-                        items(uiState.messages) { message ->
-                            ChatBubble(message = message)
-                        }
-
-                        if (uiState.isLoading && uiState.streamingResponse.isNotEmpty()) {
-                            item {
-                                ChatBubble(
-                                    message = ChatMessage(
-                                        role = "assistant",
-                                        content = uiState.streamingResponse
-                                    )
+                    if (uiState.isLoading && uiState.streamingResponse.isNotEmpty()) {
+                        item {
+                            ChatBubble(
+                                message = ChatMessage(
+                                    role = "assistant",
+                                    content = uiState.streamingResponse
                                 )
-                            }
-                        }
-
-                        if (uiState.isLoading && uiState.streamingResponse.isEmpty()) {
-                            item {
-                                LoadingIndicator()
-                            }
+                            )
                         }
                     }
 
-                    MessageInputBox(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        onSend = {
-                            if (inputText.isNotBlank()) {
+                    if (uiState.isLoading && uiState.streamingResponse.isEmpty()) {
+                        item {
+                            LoadingIndicator()
+                        }
+                    }
+                }
+
+                MessageInputBox(
+                    value = inputText,
+                    onValueChange = { inputText = it },
+                    onSend = {
+                        if (inputText.isNotBlank()) {
+                            if (uiState.selectedModel.isEmpty()) {
+                                showNoModelWarning = true
+                                inputText = ""
+                            } else {
                                 viewModel.updateInputText(inputText)
                                 viewModel.sendMessage()
                                 inputText = ""
                             }
-                        },
-                        enabled = !uiState.isLoading
-                    )
-                }
+                        }
+                    },
+                    enabled = !uiState.isLoading
+                )
             }
         }
 
