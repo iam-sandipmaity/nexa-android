@@ -11,7 +11,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Box
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -171,7 +170,6 @@ private fun RichMarkdownText(
             val line = lines[i]
             
             when {
-                // Code block (```)
                 line.startsWith("```") -> {
                     val codeLines = mutableListOf<String>()
                     i++
@@ -186,7 +184,6 @@ private fun RichMarkdownText(
                     )
                 }
                 
-                // Headers
                 line.startsWith("### ") -> {
                     HeaderText(
                         text = line.removePrefix("### "),
@@ -212,7 +209,6 @@ private fun RichMarkdownText(
                     )
                 }
                 
-                // Unordered list
                 line.trimStart().startsWith("- ") || line.trimStart().startsWith("* ") -> {
                     BulletPoint(
                         text = line.trimStart().removePrefix("- ").removePrefix("* "),
@@ -221,7 +217,6 @@ private fun RichMarkdownText(
                     )
                 }
                 
-                // Ordered list
                 line.matches(Regex("^\\d+\\.\\s+.*")) -> {
                     val number = line.substringBefore(".")
                     val text = line.substringAfter(". ")
@@ -233,15 +228,14 @@ private fun RichMarkdownText(
                     )
                 }
                 
-                // Horizontal rule
                 line.trim() == "---" || line.trim() == "***" || line.trim() == "___" -> {
                     HorizontalLine(color = textColor.copy(alpha = 0.3f))
                 }
 
-                // Table detection
                 isMarkdownTableLine(line) -> {
+                    val tableContent = extractTableContent(lines, i)
                     TableBlock(
-                        lines = extractTableContent(lines, i),
+                        lines = tableContent,
                         textColor = textColor,
                         headerColor = headerColor,
                         codeBackground = codeBackground
@@ -249,12 +243,10 @@ private fun RichMarkdownText(
                     i = skipTableLines(lines, i)
                 }
                 
-                // Empty line
                 line.isBlank() -> {
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 
-                // Regular paragraph with inline formatting
                 else -> {
                     InlineFormattedText(
                         text = line,
@@ -443,7 +435,6 @@ private fun InlineFormattedText(
         var i = 0
         while (i < text.length) {
             when {
-                // Code inline (`code`)
                 text[i] == '`' -> {
                     val end = text.indexOf('`', i + 1)
                     if (end != -1) {
@@ -464,7 +455,6 @@ private fun InlineFormattedText(
                     }
                 }
                 
-                // Bold (**text** or __text__)
                 (text.startsWith("**", i) || text.startsWith("__", i)) -> {
                     val marker = if (text.startsWith("**", i)) "**" else "__"
                     val end = text.indexOf(marker, i + marker.length)
@@ -481,7 +471,6 @@ private fun InlineFormattedText(
                     }
                 }
                 
-                // Italic (*text* or _text_)
                 (text[i] == '*' && i + 1 < text.length && text[i + 1] != '*') ||
                 (text[i] == '_' && i + 1 < text.length && text[i + 1] != '_') -> {
                     val end = text.indexOf(text[i], i + 1)
@@ -498,7 +487,6 @@ private fun InlineFormattedText(
                     }
                 }
                 
-                // Strikethrough (~~text~~)
                 text.startsWith("~~", i) -> {
                     val end = text.indexOf("~~", i + 2)
                     if (end != -1) {
