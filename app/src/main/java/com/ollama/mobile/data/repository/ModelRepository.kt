@@ -126,7 +126,7 @@ class ModelRepository {
             val modelName = model
                 .removePrefix("library:")
                 .removeSuffix("-cloud")
-                .let { if (it.contains(":")) it.substringBefore(":") else it }
+                .trim()
 
             val response = api.chat(
                 ChatRequest(
@@ -209,7 +209,8 @@ class ModelRepository {
             size = formatSize(tag.size),
             sizeBytes = tag.size,
             family = family,
-            minRam = curated?.minRam ?: "Cloud hosted"
+            minRam = curated?.minRam ?: "Cloud hosted",
+            source = ModelSource.CLOUD
         )
     }
 

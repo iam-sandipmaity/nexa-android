@@ -39,6 +39,12 @@ class ModelBrowserViewModel(
     private val offlineRepository: OfflineModelRepository = OfflineModelRepository()
 ) : ViewModel() {
 
+    private data class OfflineSnapshot(
+        val catalog: List<OfflineModelInfo>,
+        val downloaded: List<DownloadedOfflineModel>,
+        val downloadable: List<OfflineModelInfo>
+    )
+
     private val _uiState = MutableStateFlow(ModelBrowserState())
     val uiState: StateFlow<ModelBrowserState> = _uiState.asStateFlow()
 
@@ -46,27 +52,34 @@ class ModelBrowserViewModel(
         loadModels()
     }
 
+    private fun getOfflineSnapshot(): OfflineSnapshot {
+        val catalog = offlineRepository.getCatalog()
+        val downloaded = offlineRepository.getDownloadedModels()
+        val downloadedIds = downloaded.map { it.id }.toSet()
+        val downloadable = catalog.filterNot { it.id in downloadedIds }
+        return OfflineSnapshot(catalog, downloaded, downloadable)
+    }
+
     fun loadModels() {
         viewModelScope.launch {
-            val catalog = offlineRepository.getCatalog()
-            val downloaded = offlineRepository.getDownloadedModels()
-            val downloadedIds = downloaded.map { it.id }.toSet()
-            val availableToDownload = catalog.filterNot { it.id in downloadedIds }
-            
+            val snapshot = getOfflineSnapshot()
+
             _uiState.value = _uiState.value.copy(
                 isLoading = true,
                 availableModels = repository.getFallbackModels(),
-                offlineCatalog = catalog,
-                downloadModels = availableToDownload,
-                downloadedOfflineModels = downloaded
+                offlineCatalog = snapshot.catalog,
+                downloadModels = snapshot.downloadable,
+                downloadedOfflineModels = snapshot.downloaded
             )
 
             repository.getAvailableModels().fold(
                 onSuccess = { models ->
+                    val refreshed = getOfflineSnapshot()
                     _uiState.value = _uiState.value.copy(
                         availableModels = models,
-                        offlineCatalog = offlineRepository.getCatalog(),
-                        downloadedOfflineModels = offlineRepository.getDownloadedModels(),
+                        offlineCatalog = refreshed.catalog,
+                        downloadModels = refreshed.downloadable,
+                        downloadedOfflineModels = refreshed.downloaded,
                         isConnected = true,
                         needsApiKey = false,
                         isLoading = false,
@@ -74,10 +87,12 @@ class ModelBrowserViewModel(
                     )
                 },
                 onFailure = { error ->
+                    val refreshed = getOfflineSnapshot()
                     _uiState.value = _uiState.value.copy(
                         availableModels = repository.getFallbackModels(),
-                        offlineCatalog = offlineRepository.getCatalog(),
-                        downloadedOfflineModels = offlineRepository.getDownloadedModels(),
+                        offlineCatalog = refreshed.catalog,
+                        downloadModels = refreshed.downloadable,
+                        downloadedOfflineModels = refreshed.downloaded,
                         isConnected = false,
                         needsApiKey = !repository.hasApiKey(),
                         isLoading = false,
@@ -91,7 +106,7 @@ class ModelBrowserViewModel(
     fun loadLibraryModels() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingLibrary = true, libraryError = null)
-            
+
             repository.getAllLibraryModels().fold(
                 onSuccess = { models ->
                     _uiState.value = _uiState.value.copy(
@@ -112,22 +127,21 @@ class ModelBrowserViewModel(
 
     fun loadOfflineCatalog() {
         viewModelScope.launch {
-            val catalog = offlineRepository.getCatalog()
-            val downloadedIds = offlineRepository.getDownloadedModels().map { it.id }.toSet()
-            val available = catalog.filterNot { it.id in downloadedIds }
+            val snapshot = getOfflineSnapshot()
             _uiState.value = _uiState.value.copy(
-                downloadModels = available,
-                offlineCatalog = catalog
+                downloadModels = snapshot.downloadable,
+                offlineCatalog = snapshot.catalog,
+                downloadedOfflineModels = snapshot.downloaded
             )
         }
     }
 
     fun searchLibraryModels(query: String) {
         _uiState.value = _uiState.value.copy(librarySearchQuery = query)
-        
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoadingLibrary = true, libraryError = null)
-            
+
             val searchQuery = query.ifBlank { "a" }
             repository.searchLibraryModels(searchQuery).fold(
                 onSuccess = { models ->
@@ -152,10 +166,12 @@ class ModelBrowserViewModel(
             _uiState.value = _uiState.value.copy(isRefreshing = true)
             repository.getAvailableModels().fold(
                 onSuccess = { models ->
+                    val refreshed = getOfflineSnapshot()
                     _uiState.value = _uiState.value.copy(
                         availableModels = models,
-                        offlineCatalog = offlineRepository.getCatalog(),
-                        downloadedOfflineModels = offlineRepository.getDownloadedModels(),
+                        offlineCatalog = refreshed.catalog,
+                        downloadModels = refreshed.downloadable,
+                        downloadedOfflineModels = refreshed.downloaded,
                         isRefreshing = false,
                         error = null,
                         isConnected = true,
@@ -163,10 +179,12 @@ class ModelBrowserViewModel(
                     )
                 },
                 onFailure = { error ->
+                    val refreshed = getOfflineSnapshot()
                     _uiState.value = _uiState.value.copy(
                         availableModels = repository.getFallbackModels(),
-                        offlineCatalog = offlineRepository.getCatalog(),
-                        downloadedOfflineModels = offlineRepository.getDownloadedModels(),
+                        offlineCatalog = refreshed.catalog,
+                        downloadModels = refreshed.downloadable,
+                        downloadedOfflineModels = refreshed.downloaded,
                         isRefreshing = false,
                         error = error.message ?: "Couldn't refresh cloud models",
                         isConnected = false,
@@ -187,8 +205,11 @@ class ModelBrowserViewModel(
                     )
 
                     if (progress.progress >= 1f) {
+                        val refreshed = getOfflineSnapshot()
                         _uiState.value = _uiState.value.copy(
-                            downloadedOfflineModels = offlineRepository.getDownloadedModels(),
+                            offlineCatalog = refreshed.catalog,
+                            downloadModels = refreshed.downloadable,
+                            downloadedOfflineModels = refreshed.downloaded,
                             downloadingOfflineModels = _uiState.value.downloadingOfflineModels - model.id
                         )
                     }
@@ -205,8 +226,11 @@ class ModelBrowserViewModel(
 
     fun deleteOfflineModel(modelId: String) {
         offlineRepository.deleteDownloadedModel(modelId)
+        val refreshed = getOfflineSnapshot()
         _uiState.value = _uiState.value.copy(
-            downloadedOfflineModels = offlineRepository.getDownloadedModels(),
+            offlineCatalog = refreshed.catalog,
+            downloadModels = refreshed.downloadable,
+            downloadedOfflineModels = refreshed.downloaded,
             downloadingOfflineModels = _uiState.value.downloadingOfflineModels - modelId,
             offlineDownloadStatus = _uiState.value.offlineDownloadStatus - modelId
         )
@@ -224,9 +248,6 @@ class ModelBrowserViewModel(
         _uiState.value = _uiState.value.copy(error = null)
     }
 
-    /**
-     * Called when the user taps "Import" in the dialog.
-     */
     fun addCustomModelFromUrl(rawUrl: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(importState = ImportState.Probing)
@@ -234,9 +255,13 @@ class ModelBrowserViewModel(
                 val normalised = normaliseUrl(rawUrl)
                 offlineRepository.addCustomModel(normalised)
             }.onSuccess { model ->
+                val refreshed = getOfflineSnapshot()
                 _uiState.value = _uiState.value.copy(
                     importState = ImportState.Success("Added ${model.displayName} - starting download"),
-                    offlineCatalog = offlineRepository.getCatalog()
+                    offlineCatalog = refreshed.catalog,
+                    downloadModels = refreshed.downloadable,
+                    downloadedOfflineModels = refreshed.downloaded,
+                    offlineDownloadStatus = _uiState.value.offlineDownloadStatus + (model.id to "Queued")
                 )
                 downloadOfflineModel(model)
             }.onFailure { e ->
@@ -247,15 +272,10 @@ class ModelBrowserViewModel(
         }
     }
 
-    /** Reset import dialog state (called when dialog is dismissed). */
     fun clearImportState() {
         _uiState.value = _uiState.value.copy(importState = ImportState.Idle)
     }
 
-    /**
-     * Convert Hugging Face viewer (/blob/) URLs to direct-download (/resolve/) URLs
-     * and append ?download=true if missing.
-     */
     private fun normaliseUrl(raw: String): String {
         var url = raw.trim()
 
@@ -338,7 +358,7 @@ class ModelBrowserViewModel(
 
     fun getFilteredLibraryModels(): List<LibraryModelInfo> {
         var models = _uiState.value.libraryModels
-        
+
         if (_uiState.value.librarySearchQuery.isNotBlank()) {
             val query = _uiState.value.librarySearchQuery.lowercase()
             models = models.filter {
@@ -347,7 +367,7 @@ class ModelBrowserViewModel(
                     it.description.contains(query, ignoreCase = true)
             }
         }
-        
+
         return models
     }
 
@@ -359,7 +379,7 @@ class ModelBrowserViewModel(
         var models = _uiState.value.downloadModels
         val downloadedIds = _uiState.value.downloadedOfflineModels.map { it.id }.toSet()
         models = models.filterNot { it.id in downloadedIds }
-        
+
         if (_uiState.value.searchQuery.isNotBlank()) {
             val query = _uiState.value.searchQuery.lowercase()
             models = models.filter {
@@ -368,7 +388,7 @@ class ModelBrowserViewModel(
                     it.family.contains(query, ignoreCase = true)
             }
         }
-        
+
         return models
     }
 }

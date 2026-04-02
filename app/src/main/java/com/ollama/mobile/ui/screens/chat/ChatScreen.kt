@@ -77,8 +77,8 @@ fun ChatScreen(
                 // Loading a specific existing chat from history
                 viewModel.initializeWithChat(selectedModel, existingChatId)
             } else {
-                // Starting a fresh chat with a new model
-                viewModel.startNewChat(selectedModel)
+                // Starting a fresh chat with a new model and initializing runtime state
+                viewModel.initializeWithModel(selectedModel)
             }
         }
     }

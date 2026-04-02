@@ -5,11 +5,29 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    private var baseUrl = AppConfig.getBaseUrl()
+    private const val DEFAULT_BASE_URL = "https://ollama.com/"
+
+    private fun normalizeBaseUrlOrNull(rawUrl: String): String? {
+        val candidate = rawUrl.trim().ifBlank { DEFAULT_BASE_URL }
+        val withScheme = if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+            candidate
+        } else {
+            "https://$candidate"
+        }
+        val normalized = if (withScheme.endsWith('/')) withScheme else "$withScheme/"
+        val uri = runCatching { URI(normalized) }.getOrNull() ?: return null
+        val scheme = uri.scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") return null
+        if (uri.host.isNullOrBlank()) return null
+        return normalized
+    }
+
+    private var baseUrl = normalizeBaseUrlOrNull(AppConfig.getBaseUrl()) ?: DEFAULT_BASE_URL
     private var apiKey = AppConfig.getApiKey()
 
     private fun createOkHttpClient(): OkHttpClient {
@@ -47,7 +65,8 @@ object RetrofitClient {
     private var retrofit: Retrofit = createRetrofit()
 
     fun updateBaseUrl(newBaseUrl: String) {
-        baseUrl = if (newBaseUrl.endsWith("/")) newBaseUrl else "$newBaseUrl/"
+        val normalized = normalizeBaseUrlOrNull(newBaseUrl) ?: return
+        baseUrl = normalized
         okHttpClient = createOkHttpClient()
         retrofit = createRetrofit()
     }

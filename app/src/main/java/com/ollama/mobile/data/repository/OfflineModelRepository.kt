@@ -243,7 +243,7 @@ class OfflineModelRepository {
 
         // ── Step 5: persist ───────────────────────────────────────────────
         val updated = getCustomModels() + model
-        prefs.edit().putString(KEY_CUSTOM_MODELS, gson.toJson(updated)).apply()
+        prefs.edit().putString(KEY_CUSTOM_MODELS, gson.toJson(updated)).commit()
 
         return model
     }
@@ -251,7 +251,7 @@ class OfflineModelRepository {
     /** Remove a user-added custom model entry from the catalog (does not delete any downloaded file). */
     fun removeCustomModel(modelId: String) {
         val updated = getCustomModels().filterNot { it.id == modelId }
-        prefs.edit().putString(KEY_CUSTOM_MODELS, gson.toJson(updated)).apply()
+        prefs.edit().putString(KEY_CUSTOM_MODELS, gson.toJson(updated)).commit()
     }
 
     private fun getCustomModels(): List<OfflineModelInfo> {
@@ -417,11 +417,12 @@ class OfflineModelRepository {
                 }
             }
 
-            // Register BEFORE rename so a crash mid-rename can still be recovered.
-            saveDownloadedModel(model, tempFile)
-
             if (targetFile.exists()) targetFile.delete()
-            tempFile.renameTo(targetFile)
+            val renamed = tempFile.renameTo(targetFile)
+            if (!renamed) {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
+            }
 
             // Update the stored path to the final (renamed) file.
             saveDownloadedModel(model, targetFile)
@@ -462,7 +463,7 @@ class OfflineModelRepository {
     }
 
     private fun persistDownloadedModels(models: List<DownloadedOfflineModel>) {
-        prefs.edit().putString(KEY_DOWNLOADED_MODELS, gson.toJson(models)).apply()
+        prefs.edit().putString(KEY_DOWNLOADED_MODELS, gson.toJson(models)).commit()
     }
 
     private fun formatBytes(sizeBytes: Long): String = when {

@@ -7,6 +7,7 @@ import com.ollama.mobile.data.repository.ChatHistoryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.net.URI
 
 object AppConfig {
     private const val PREFS_NAME = "ollama_mobile_config"
@@ -44,6 +45,21 @@ object AppConfig {
 
     private fun prefs() = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    private fun normalizeBaseUrl(rawUrl: String): String {
+        val candidate = rawUrl.trim().ifBlank { DEFAULT_BASE_URL }
+        val withScheme = if (candidate.startsWith("http://") || candidate.startsWith("https://")) {
+            candidate
+        } else {
+            "https://$candidate"
+        }
+        val normalized = if (withScheme.endsWith('/')) withScheme else "$withScheme/"
+        val uri = URI(normalized)
+        val scheme = uri.scheme?.lowercase()
+        require(scheme == "http" || scheme == "https")
+        require(!uri.host.isNullOrBlank())
+        return normalized
+    }
+
     fun getChatHistoryRepository(): ChatHistoryRepository {
         ensureInitialized()
         return ChatHistoryRepository(appContext)
@@ -51,12 +67,13 @@ object AppConfig {
 
     fun getBaseUrl(): String {
         ensureInitialized()
-        return prefs().getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+        val saved = prefs().getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
+        return runCatching { normalizeBaseUrl(saved) }.getOrDefault(DEFAULT_BASE_URL)
     }
 
     fun updateBaseUrl(url: String) {
         ensureInitialized()
-        val normalizedUrl = url.trim().ifBlank { DEFAULT_BASE_URL }
+        val normalizedUrl = runCatching { normalizeBaseUrl(url) }.getOrNull() ?: return
         prefs().edit().putString(KEY_BASE_URL, normalizedUrl).apply()
     }
 
@@ -106,7 +123,10 @@ object AppConfig {
         val hasSavedApiKey = !prefs.getString(KEY_API_KEY, "").isNullOrBlank()
 
         if (!hasSavedBaseUrl) {
-            prefs.edit().putString(KEY_BASE_URL, BuildConfig.OLLAMA_BASE_URL.ifBlank { DEFAULT_BASE_URL }).apply()
+            val seededUrl = runCatching {
+                normalizeBaseUrl(BuildConfig.OLLAMA_BASE_URL.ifBlank { DEFAULT_BASE_URL })
+            }.getOrDefault(DEFAULT_BASE_URL)
+            prefs.edit().putString(KEY_BASE_URL, seededUrl).apply()
         }
 
         if (!hasSavedApiKey && BuildConfig.OLLAMA_API_KEY.isNotBlank()) {

@@ -102,6 +102,7 @@ class ChatViewModel(
         if (isOfflineModel(modelName)) {
             _uiState.value = _uiState.value.copy(
                 isOfflineModel = true,
+                isLibraryModel = false,
                 isConnected = false,
                 error = null
             )
@@ -119,6 +120,10 @@ class ChatViewModel(
             checkConnection()
             return
         }
+        _uiState.value = _uiState.value.copy(
+            isOfflineModel = false,
+            isLibraryModel = false
+        )
         checkConnection()
     }
 
@@ -128,13 +133,14 @@ class ChatViewModel(
             chatId = existingChatId ?: UUID.randomUUID().toString()
         )
 
-        if (existingChatId != null && chatHistoryRepository != null) {
+        if (existingChatId != null) {
             loadChatHistory(existingChatId)
         }
 
         if (isOfflineModel(modelName)) {
             _uiState.value = _uiState.value.copy(
                 isOfflineModel = true,
+                isLibraryModel = false,
                 isConnected = false,
                 error = null
             )
@@ -152,6 +158,10 @@ class ChatViewModel(
             checkConnection()
             return
         }
+        _uiState.value = _uiState.value.copy(
+            isOfflineModel = false,
+            isLibraryModel = false
+        )
         checkConnection()
     }
 
@@ -437,6 +447,6 @@ class ChatViewModel(
     }
 
     private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
-    
+
     private fun isLibraryModel(modelName: String): Boolean = modelName.startsWith("library:")
 }
