@@ -1,6 +1,7 @@
 package com.ollama.mobile.ui.screens.settings
 
 import android.content.Context
+import com.ollama.mobile.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ollama.mobile.data.config.AppConfig
@@ -20,7 +21,7 @@ data class SettingsUiState(
     val connectionStatus: ConnectionStatus = ConnectionStatus.Unknown,
     val cacheSize: String = "0 MB",
     val chatCount: Int = 0,
-    val appVersion: String = "1.0.0"
+    val appVersion: String = BuildConfig.VERSION_NAME
 )
 
 enum class ConnectionStatus {

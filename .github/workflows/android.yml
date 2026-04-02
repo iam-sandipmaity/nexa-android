@@ -56,6 +56,16 @@ jobs:
           echo "path=$APK_PATH" >> $GITHUB_OUTPUT
           echo "Found APK: $APK_PATH"
 
+      - name: Rename APK for release
+        id: release_apk
+        run: |
+          VERSION_NAME=${{ steps.version.outputs.version_name }}
+          TARGET_DIR=app/build/outputs/apk/release
+          TARGET_APK="$TARGET_DIR/nexa-v${VERSION_NAME}.apk"
+          cp "${{ steps.apk.outputs.path }}" "$TARGET_APK"
+          echo "path=$TARGET_APK" >> $GITHUB_OUTPUT
+          echo "Renamed APK: $TARGET_APK"
+
       - name: Upload APK to Release
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         uses: softprops/action-gh-release@v2
@@ -66,13 +76,13 @@ jobs:
           prerelease: ${{ github.ref == 'refs/heads/develop' }}
           generate_release_notes: true
           files: |
-            ${{ steps.apk.outputs.path }}
+            ${{ steps.release_apk.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ollama-mobile-release-apk
-          path: ${{ steps.apk.outputs.path }}
+          name: nexa-v${{ steps.version.outputs.version_name }}-apk
+          path: ${{ steps.release_apk.outputs.path }}
           retention-days: 30

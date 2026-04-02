@@ -37,6 +37,15 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = SettingsViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val repoBaseUrl = "https://github.com/iam-sandipmaity/nexa-android"
+
+    val openUrl: (String) -> Unit = { url ->
+        runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        }
+    }
+
     var showThemeDialog by remember { mutableStateOf(false) }
     var showFontSizeDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -66,7 +75,11 @@ fun SettingsScreen(
     }
 
     if (showAboutDialog) {
-        AboutDialog(onDismiss = { showAboutDialog = false })
+        AboutDialog(
+            appVersion = uiState.appVersion,
+            onDismiss = { showAboutDialog = false },
+            onVisitRepo = { openUrl(repoBaseUrl) }
+        )
     }
 
     if (showClearCacheDialog) {
@@ -351,7 +364,7 @@ fun SettingsScreen(
             SettingsCard {
                 SettingsClickableItem(
                     icon = Icons.Default.Psychology,
-                    title = "Ollama Mobile",
+                    title = "Nexa Mobile",
                     subtitle = "Version ${uiState.appVersion}",
                     onClick = { showAboutDialog = true }
                 )
@@ -361,8 +374,8 @@ fun SettingsScreen(
                 SettingsClickableItem(
                     icon = Icons.Default.Description,
                     title = "Open Source Licenses",
-                    subtitle = "View third-party licenses",
-                    onClick = { /* TODO: Show licenses */ }
+                    subtitle = "View app and repository license",
+                    onClick = { openUrl("$repoBaseUrl/blob/main/LICENSE") }
                 )
                 
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -371,7 +384,7 @@ fun SettingsScreen(
                     icon = Icons.Default.BugReport,
                     title = "Report a Bug",
                     subtitle = "Help improve the app",
-                    onClick = { /* TODO: Bug reporting */ }
+                    onClick = { openUrl("$repoBaseUrl/issues/new/choose") }
                 )
                 
                 Divider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -380,7 +393,7 @@ fun SettingsScreen(
                     icon = Icons.Default.Star,
                     title = "Rate App",
                     subtitle = "Share your feedback",
-                    onClick = { /* TODO: Rate app */ }
+                    onClick = { openUrl("$repoBaseUrl/discussions") }
                 )
             }
 
@@ -390,8 +403,6 @@ fun SettingsScreen(
                 title = "Contributor",
                 subtitle = "Developer information"
             )
-            
-            val context = LocalContext.current
             
             SettingsCard {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -837,7 +848,11 @@ private fun FontSizeSelectionDialog(
 }
 
 @Composable
-private fun AboutDialog(onDismiss: () -> Unit) {
+private fun AboutDialog(
+    appVersion: String,
+    onDismiss: () -> Unit,
+    onVisitRepo: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { 
@@ -849,22 +864,22 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Ollama Mobile", fontWeight = FontWeight.Bold)
+                Text("Nexa Mobile", fontWeight = FontWeight.Bold)
             }
         },
         text = {
             Column {
-                Text("Version 1.0.0", fontWeight = FontWeight.Medium)
+                Text("Version $appVersion", fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "A mobile client for Ollama Cloud and local GGUF model inference. Chat with AI models online or offline.",
+                    text = "A hybrid AI chat app for Ollama Cloud and on-device GGUF model inference.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Built with Jetpack Compose",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                OutlinedButton(onClick = onVisitRepo) {
+                    Icon(Icons.Default.OpenInNew, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Visit Repository")
                 )
             }
         },
