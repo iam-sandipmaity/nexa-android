@@ -111,7 +111,7 @@ fun ModelBrowserScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Downloaded (${uiState.downloadedOfflineModels.size})") },
+                    text = { Text("My Models (${uiState.downloadedOfflineModels.size})") },
                     icon = { Icon(Icons.Default.Storage, contentDescription = null) }
                 )
                 Tab(
@@ -122,19 +122,8 @@ fun ModelBrowserScreen(
                             viewModel.loadOfflineCatalog()
                         }
                     },
-                    text = { Text("Available") },
+                    text = { Text("Browse") },
                     icon = { Icon(Icons.Default.CloudDownload, contentDescription = null) }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { 
-                        selectedTab = 2
-                        if (uiState.libraryModels.isEmpty()) {
-                            viewModel.loadLibraryModels()
-                        }
-                    },
-                    text = { Text("Library") },
-                    icon = { Icon(Icons.Default.Cloud, contentDescription = null) }
                 )
             }
 
@@ -151,15 +140,6 @@ fun ModelBrowserScreen(
                     downloadStatus = uiState.offlineDownloadStatus,
                     onDownload = viewModel::downloadOfflineModel,
                     onImportClick = { showImportDialog = true }
-                )
-                2 -> LibraryModelsTab(
-                    libraryModels = viewModel.getFilteredLibraryModels(),
-                    isLoading = uiState.isLoadingLibrary,
-                    error = uiState.libraryError,
-                    searchQuery = uiState.librarySearchQuery,
-                    onSearchQueryChange = viewModel::searchLibraryModels,
-                    onRefresh = { viewModel.loadLibraryModels() },
-                    onChat = { model -> onNavigateToChat("library:${model.name}") }
                 )
             }
         }
@@ -449,7 +429,7 @@ private fun DownloadedModelsTab(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Switch to Library tab to browse models",
+                    "Switch to Browse tab to download models",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
