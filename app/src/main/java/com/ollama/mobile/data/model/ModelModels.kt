@@ -57,3 +57,20 @@ data class ModelTag(
 data class VersionResponse(
     val version: String
 )
+
+data class LibraryModelsResponse(
+    val models: List<LibraryModel>
+)
+
+data class LibraryModel(
+    val name: String,
+    val description: String?,
+    val model: String?,
+    val size: Long?,
+    val digest: String?,
+    val lastModified: String?,
+    val tags: List<String>?,
+    val pullCount: Int?,
+    val verified: Boolean?,
+    val featured: Boolean?
+)

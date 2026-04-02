@@ -1,5 +1,6 @@
 package com.ollama.mobile.data.repository
 
+import com.ollama.mobile.data.api.OllamaLibraryClient
 import com.ollama.mobile.data.api.RetrofitClient
 import com.ollama.mobile.data.config.AppConfig
 import com.ollama.mobile.data.model.ChatRequest
@@ -7,23 +8,82 @@ import com.ollama.mobile.data.model.Message
 import com.ollama.mobile.data.model.ModelTag
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.domain.model.ChatResult
+import com.ollama.mobile.domain.model.LibraryModelInfo
+import com.ollama.mobile.domain.model.ModelSource
 import com.ollama.mobile.domain.model.OllamaModelInfo
 
 class ModelRepository {
 
     private val api get() = RetrofitClient.getApi()
+    private val libraryApi get() = OllamaLibraryClient.getLibraryApi()
 
     val curatedModels = listOf(
-        OllamaModelInfo("llama3.2", "llama3.2", "Llama 3.2", "Latest Meta LLM with excellent reasoning", "2.0GB", 2_000_000_000, "Llama", "Cloud hosted"),
-        OllamaModelInfo("llama3.1", "llama3.1", "Llama 3.1", "Powerful open-source LLM by Meta", "4.3GB", 4_300_000_000, "Llama", "Cloud hosted"),
-        OllamaModelInfo("gemma2:2b", "gemma2:2b", "Gemma 2B", "Google's efficient 2B model", "1.6GB", 1_600_000_000, "Gemma", "Cloud hosted"),
-        OllamaModelInfo("gemma2:9b", "gemma2:9b", "Gemma 9B", "Google's powerful 9B model", "5.2GB", 5_200_000_000, "Gemma", "Cloud hosted"),
-        OllamaModelInfo("mistral", "mistral", "Mistral", "Excellent for instruction following", "4.1GB", 4_100_000_000, "Mistral", "Cloud hosted"),
-        OllamaModelInfo("qwen2.5", "qwen2.5", "Qwen 2.5", "Alibaba's multilingual model", "3.3GB", 3_300_000_000, "Qwen", "Cloud hosted"),
-        OllamaModelInfo("codellama", "codellama", "Code Llama", "Specialized for code generation", "3.8GB", 3_800_000_000, "Llama", "Cloud hosted"),
-        OllamaModelInfo("phi3.5", "phi3.5", "Phi-3.5", "Microsoft's latest small model", "2.2GB", 2_200_000_000, "Phi", "Cloud hosted"),
-        OllamaModelInfo("tinyllama", "tinyllama", "TinyLlama", "Ultra-lightweight, 1.1B params", "637MB", 637_000_000, "Llama", "Cloud hosted")
+        OllamaModelInfo("llama3.2", "llama3.2", "Llama 3.2", "Latest Meta LLM with excellent reasoning", "2.0GB", 2_000_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("llama3.1", "llama3.1", "Llama 3.1", "Powerful open-source LLM by Meta", "4.3GB", 4_300_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("gemma2:2b", "gemma2:2b", "Gemma 2B", "Google's efficient 2B model", "1.6GB", 1_600_000_000, "Gemma", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("gemma2:9b", "gemma2:9b", "Gemma 9B", "Google's powerful 9B model", "5.2GB", 5_200_000_000, "Gemma", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("mistral", "mistral", "Mistral", "Excellent for instruction following", "4.1GB", 4_100_000_000, "Mistral", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("qwen2.5", "qwen2.5", "Qwen 2.5", "Alibaba's multilingual model", "3.3GB", 3_300_000_000, "Qwen", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("codellama", "codellama", "Code Llama", "Specialized for code generation", "3.8GB", 3_800_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("phi3.5", "phi3.5", "Phi-3.5", "Microsoft's latest small model", "2.2GB", 2_200_000_000, "Phi", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("tinyllama", "tinyllama", "TinyLlama", "Ultra-lightweight, 1.1B params", "637MB", 637_000_000, "Llama", "Cloud hosted", ModelSource.CURATED)
     )
+
+    suspend fun searchLibraryModels(query: String): Result<List<LibraryModelInfo>> {
+        return try {
+            val response = libraryApi.searchModels(query)
+            if (response.isSuccessful) {
+                val models = response.body()?.models?.map { libraryModel ->
+                    LibraryModelInfo(
+                        id = libraryModel.name,
+                        name = libraryModel.name,
+                        displayName = formatLibraryDisplayName(libraryModel.name),
+                        description = libraryModel.description ?: "An Ollama library model",
+                        size = formatSize(libraryModel.size ?: 0),
+                        sizeBytes = libraryModel.size ?: 0,
+                        family = extractFamily(libraryModel.name),
+                        minRam = "Cloud",
+                        pullCount = libraryModel.pullCount ?: 0,
+                        verified = libraryModel.verified ?: false,
+                        tags = libraryModel.tags ?: emptyList()
+                    )
+                }?.sortedByDescending { it.pullCount } ?: emptyList()
+                Result.success(models)
+            } else {
+                Result.failure(Exception("Failed to search library: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getAllLibraryModels(): Result<List<LibraryModelInfo>> {
+        return try {
+            val response = libraryApi.searchModels("")
+            if (response.isSuccessful) {
+                val models = response.body()?.models?.map { libraryModel ->
+                    LibraryModelInfo(
+                        id = libraryModel.name,
+                        name = libraryModel.name,
+                        displayName = formatLibraryDisplayName(libraryModel.name),
+                        description = libraryModel.description ?: "An Ollama library model",
+                        size = formatSize(libraryModel.size ?: 0),
+                        sizeBytes = libraryModel.size ?: 0,
+                        family = extractFamily(libraryModel.name),
+                        minRam = "Cloud",
+                        pullCount = libraryModel.pullCount ?: 0,
+                        verified = libraryModel.verified ?: false,
+                        tags = libraryModel.tags ?: emptyList()
+                    )
+                }?.sortedByDescending { it.pullCount } ?: emptyList()
+                Result.success(models)
+            } else {
+                Result.failure(Exception("Failed to load library: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun getAvailableModels(): Result<List<OllamaModelInfo>> {
         return try {
@@ -50,9 +110,14 @@ class ModelRepository {
                 return Result.failure(IllegalStateException("Add your Ollama API key in Settings before chatting."))
             }
 
+            val modelName = model
+                .removePrefix("library:")
+                .removeSuffix("-cloud")
+                .let { if (it.contains(":")) it.substringBefore(":") else it }
+
             val response = api.chat(
                 ChatRequest(
-                    model = model.removeSuffix("-cloud"),
+                    model = modelName,
                     messages = messages.map { Message(it.role, it.content) },
                     stream = false
                 )
@@ -138,4 +203,28 @@ class ModelRepository {
         name.split(":", "-", "_", ".")
             .filter { it.isNotBlank() }
             .joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
+
+    private fun formatLibraryDisplayName(name: String): String {
+        val parts = name.split(":")
+        val baseName = parts[0].replace("-", " ").replace("_", " ")
+            .split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+        return if (parts.size > 1) "$baseName (${parts[1]})" else baseName
+    }
+
+    private fun extractFamily(name: String): String {
+        val lower = name.lowercase()
+        return when {
+            lower.contains("llama") -> "Llama"
+            lower.contains("gemma") -> "Gemma"
+            lower.contains("mistral") || lower.contains("mixtral") -> "Mistral"
+            lower.contains("qwen") -> "Qwen"
+            lower.contains("phi") -> "Phi"
+            lower.contains("codellama") || lower.contains("code") -> "CodeLlama"
+            lower.contains("deepseek") -> "DeepSeek"
+            lower.contains("nemotron") -> "Nemotron"
+            lower.contains("aya") -> "Aya"
+            lower.contains("command") -> "Command"
+            else -> "Model"
+        }
+    }
 }

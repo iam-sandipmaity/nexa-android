@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ollama.mobile.data.repository.ModelRepository
 import com.ollama.mobile.data.repository.OfflineModelRepository
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.LibraryModelInfo
 import com.ollama.mobile.domain.model.OfflineModelInfo
 import com.ollama.mobile.domain.model.OllamaModelInfo
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,10 @@ import kotlinx.coroutines.launch
 
 data class ModelBrowserState(
     val availableModels: List<OllamaModelInfo> = emptyList(),
+    val libraryModels: List<LibraryModelInfo> = emptyList(),
+    val librarySearchQuery: String = "",
+    val isLoadingLibrary: Boolean = false,
+    val libraryError: String? = null,
     val offlineCatalog: List<OfflineModelInfo> = emptyList(),
     val downloadedOfflineModels: List<DownloadedOfflineModel> = emptyList(),
     val downloadingOfflineModels: Map<String, Float> = emptyMap(),
@@ -70,6 +75,53 @@ class ModelBrowserViewModel(
                         needsApiKey = !repository.hasApiKey(),
                         isLoading = false,
                         error = error.message ?: "Couldn't load cloud models"
+                    )
+                }
+            )
+        }
+    }
+
+    fun loadLibraryModels() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingLibrary = true, libraryError = null)
+            
+            repository.getAllLibraryModels().fold(
+                onSuccess = { models ->
+                    _uiState.value = _uiState.value.copy(
+                        libraryModels = models,
+                        isLoadingLibrary = false,
+                        libraryError = null
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingLibrary = false,
+                        libraryError = error.message ?: "Failed to load library"
+                    )
+                }
+            )
+        }
+    }
+
+    fun searchLibraryModels(query: String) {
+        _uiState.value = _uiState.value.copy(librarySearchQuery = query)
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoadingLibrary = true, libraryError = null)
+            
+            val searchQuery = query.ifBlank { "a" }
+            repository.searchLibraryModels(searchQuery).fold(
+                onSuccess = { models ->
+                    _uiState.value = _uiState.value.copy(
+                        libraryModels = models,
+                        isLoadingLibrary = false,
+                        libraryError = null
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingLibrary = false,
+                        libraryError = error.message ?: "Search failed"
                     )
                 }
             )
@@ -263,5 +315,24 @@ class ModelBrowserViewModel(
         return (_uiState.value.availableModels.map { it.family } + _uiState.value.offlineCatalog.map { it.family })
             .distinct()
             .sorted()
+    }
+
+    fun getFilteredLibraryModels(): List<LibraryModelInfo> {
+        var models = _uiState.value.libraryModels
+        
+        if (_uiState.value.librarySearchQuery.isNotBlank()) {
+            val query = _uiState.value.librarySearchQuery.lowercase()
+            models = models.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                    it.displayName.contains(query, ignoreCase = true) ||
+                    it.description.contains(query, ignoreCase = true)
+            }
+        }
+        
+        return models
+    }
+
+    fun getLibraryModelFamilies(): List<String> {
+        return _uiState.value.libraryModels.map { it.family }.distinct().sorted()
     }
 }

@@ -4,6 +4,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 
+enum class ModelSource {
+    CURATED,
+    CLOUD,
+    LIBRARY,
+    OFFLINE
+}
+
 data class OllamaModelInfo(
     val id: String,
     val name: String,
@@ -12,7 +19,8 @@ data class OllamaModelInfo(
     val size: String,
     val sizeBytes: Long,
     val family: String,
-    val minRam: String
+    val minRam: String,
+    val source: ModelSource = ModelSource.CURATED
 ) {
     val logo: ImageVector
         get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
@@ -101,6 +109,23 @@ data class LocalModel(
             size >= 1_000_000 -> String.format("%.0fMB", size / 1_000_000.0)
             else -> String.format("%dKB", size / 1000)
         }
+}
+
+data class LibraryModelInfo(
+    val id: String,
+    val name: String,
+    val displayName: String,
+    val description: String,
+    val size: String,
+    val sizeBytes: Long,
+    val family: String,
+    val minRam: String,
+    val pullCount: Int = 0,
+    val verified: Boolean = false,
+    val tags: List<String> = emptyList()
+) {
+    val logo: ImageVector
+        get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
 }
 
 data class ChatMessage(

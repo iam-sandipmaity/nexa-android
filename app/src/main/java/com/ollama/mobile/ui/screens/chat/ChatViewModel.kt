@@ -28,6 +28,7 @@ data class ChatUiState(
     val selectedModel: String = "",
     val isConnected: Boolean = true,
     val isOfflineModel: Boolean = false,
+    val isLibraryModel: Boolean = false,
     val isModelLoaded: Boolean = false,
     val streamingResponse: String = "",
     val chatId: String? = null,
@@ -107,6 +108,17 @@ class ChatViewModel(
             loadOfflineModel(modelName)
             return
         }
+        
+        if (isLibraryModel(modelName)) {
+            _uiState.value = _uiState.value.copy(
+                isOfflineModel = false,
+                isConnected = true,
+                isLibraryModel = true,
+                error = null
+            )
+            checkConnection()
+            return
+        }
         checkConnection()
     }
 
@@ -127,6 +139,17 @@ class ChatViewModel(
                 error = null
             )
             loadOfflineModel(modelName)
+            return
+        }
+
+        if (isLibraryModel(modelName)) {
+            _uiState.value = _uiState.value.copy(
+                isOfflineModel = false,
+                isConnected = true,
+                isLibraryModel = true,
+                error = null
+            )
+            checkConnection()
             return
         }
         checkConnection()
@@ -414,4 +437,6 @@ class ChatViewModel(
     }
 
     private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
+    
+    private fun isLibraryModel(modelName: String): Boolean = modelName.startsWith("library:")
 }

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Memory
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.LibraryModelInfo
 import com.ollama.mobile.domain.model.OfflineModelInfo
 import com.ollama.mobile.domain.model.OllamaModelInfo
 import com.ollama.mobile.domain.model.familyLogos
@@ -103,6 +105,17 @@ fun ModelBrowserScreen(
                     text = { Text("Browse") },
                     icon = { Icon(Icons.Default.Download, contentDescription = null) }
                 )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { 
+                        selectedTab = 2
+                        if (uiState.libraryModels.isEmpty()) {
+                            viewModel.loadLibraryModels()
+                        }
+                    },
+                    text = { Text("Library") },
+                    icon = { Icon(Icons.Default.Cloud, contentDescription = null) }
+                )
             }
 
             when (selectedTab) {
@@ -122,6 +135,15 @@ fun ModelBrowserScreen(
                     onImportUrl = viewModel::addCustomModelFromUrl,
                     onDismissImportState = viewModel::clearImportState,
                     onChat = onNavigateToChat
+                )
+                2 -> LibraryModelsTab(
+                    libraryModels = viewModel.getFilteredLibraryModels(),
+                    isLoading = uiState.isLoadingLibrary,
+                    error = uiState.libraryError,
+                    searchQuery = uiState.librarySearchQuery,
+                    onSearchQueryChange = viewModel::searchLibraryModels,
+                    onRefresh = { viewModel.loadLibraryModels() },
+                    onChat = { model -> onNavigateToChat("library:${model.name}") }
                 )
             }
         }
@@ -711,6 +733,207 @@ private fun familyColor(family: String): Color = when (family.lowercase()) {
     "phi"       -> Color(0xFF0078D4)
     "deepseek"  -> Color(0xFF00BCD4)
     "codellama" -> Color(0xFF4CAF50)
+    "nemotron"  -> Color(0xFF8B5CF6)
+    "aya"       -> Color(0xFF10B981)
+    "command"   -> Color(0xFF6366F1)
     "custom"    -> Color(0xFF9C27B0)
     else        -> Color(0xFF607D8B)
+}
+
+// ─── Library tab ─────────────────────────────────────────────────────────────────
+
+@Composable
+private fun LibraryModelsTab(
+    libraryModels: List<LibraryModelInfo>,
+    isLoading: Boolean,
+    error: String?,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onChat: (LibraryModelInfo) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            placeholder = { Text("Search Ollama Library...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Default.SearchOff, contentDescription = "Clear")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Loading Ollama Library...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        } else if (error != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.SearchOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = onRefresh) {
+                        Text("Retry")
+                    }
+                }
+            }
+        } else if (libraryModels.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.Cloud,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        if (searchQuery.isNotEmpty()) "No models found for \"$searchQuery\""
+                        else "Start typing to search Ollama Library",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Browse thousands of models from Ollama.com",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(libraryModels, key = { it.id }) { model ->
+                    LibraryModelItem(
+                        model = model,
+                        onChat = { onChat(model) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryModelItem(
+    model: LibraryModelInfo,
+    onChat: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onChat
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(familyColor(model.family)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = model.logo,
+                    contentDescription = model.family,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        model.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (model.verified) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.Check,
+                            contentDescription = "Verified",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFF4CAF50)
+                        )
+                    }
+                }
+                Text(
+                    model.description.take(80) + if (model.description.length > 80) "..." else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    maxLines = 2
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        model.size,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        "${formatPullCount(model.pullCount)} pulls",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        model.family,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = familyColor(model.family)
+                    )
+                }
+            }
+            
+            Icon(
+                Icons.Default.Chat,
+                contentDescription = "Chat",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+private fun formatPullCount(count: Int): String = when {
+    count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+    count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+    else -> count.toString()
 }
