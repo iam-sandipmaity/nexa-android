@@ -480,6 +480,8 @@ class ChatViewModel(
             "<|eot_id|>",
             "<|end|>",
             "<|end_of_text|>",
+            "<end_of_turn>",
+            "<start_of_turn>user",
             "<|im_start|>user",
             "<|start_header_id|>user<|end_header_id|>"
         )
@@ -489,13 +491,29 @@ class ChatViewModel(
             .filter { it >= 0 }
             .minOrNull() ?: -1
 
-        return if (stopIndex >= 0) {
+        if (stopIndex >= 0) {
             StreamProcessResult(
                 updatedText = sanitizeModelArtifacts(normalized.substring(0, stopIndex)),
                 shouldStop = true
             )
         } else {
-            StreamProcessResult(updatedText = normalized, shouldStop = false)
+            val repeatedAssistantIndex = findRepeatedAssistantStart(normalized)
+            if (repeatedAssistantIndex >= 0) {
+                StreamProcessResult(
+                    updatedText = sanitizeModelArtifacts(normalized.substring(0, repeatedAssistantIndex)),
+                    shouldStop = true
+                )
+            } else {
+                val repeatedBlockIndex = findRepeatedBlockStart(normalized)
+                if (repeatedBlockIndex >= 0) {
+                    StreamProcessResult(
+                        updatedText = sanitizeModelArtifacts(normalized.substring(0, repeatedBlockIndex)),
+                        shouldStop = true
+                    )
+                } else {
+                    StreamProcessResult(updatedText = normalized, shouldStop = false)
+                }
+            }
         }
     }
 
@@ -507,7 +525,30 @@ class ChatViewModel(
             .replace("<|end|>", "")
             .replace("<|assistant|>", "")
             .replace("<|user|>", "")
+            .replace("<start_of_turn>", "")
+            .replace("<end_of_turn>", "")
             .replace("<|start_header_id|>", "")
             .replace("<|end_header_id|>", "")
+    }
+
+    private fun findRepeatedAssistantStart(text: String): Int {
+        if (text.length < 80) return -1
+        val matches = Regex("\\nassistant\\s*\\n", RegexOption.IGNORE_CASE).findAll(text).map { it.range.first }.toList()
+        return if (matches.size >= 2) matches[1] else -1
+    }
+
+    private fun findRepeatedBlockStart(text: String): Int {
+        val cleaned = text.trimStart()
+        if (cleaned.length < 240) return -1
+
+        val sampleLength = minOf(140, cleaned.length / 2)
+        val seed = cleaned.take(sampleLength)
+        val repeatAt = cleaned.indexOf(seed, startIndex = sampleLength)
+        return if (repeatAt >= 0) {
+            val trimmedOffset = text.length - cleaned.length
+            trimmedOffset + repeatAt
+        } else {
+            -1
+        }
     }
 }

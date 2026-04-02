@@ -163,11 +163,28 @@ class LocalInferenceEngine {
         val modelName = getModelName().lowercase()
         
         return when {
+            modelName.contains("gemma") -> formatGemmaPrompt(messages)
             modelName.contains("llama") -> formatLlama3Prompt(messages)
             modelName.contains("phi") -> formatPhi3Prompt(messages)
-            modelName.contains("qwen") || modelName.contains("gemma") -> formatChatMLPrompt(messages)
+            modelName.contains("qwen") -> formatChatMLPrompt(messages)
             else -> formatDefaultPrompt(messages)
         }
+    }
+
+    private fun formatGemmaPrompt(messages: List<ChatMessage>): String {
+        val sb = StringBuilder()
+
+        for (msg in messages) {
+            val role = if (msg.role == "user") "user" else "model"
+            sb.append("<start_of_turn>")
+            sb.append(role)
+            sb.append("\n")
+            sb.append(msg.content)
+            sb.append("<end_of_turn>\n")
+        }
+
+        sb.append("<start_of_turn>model\n")
+        return sb.toString()
     }
     
     private fun formatLlama3Prompt(messages: List<ChatMessage>): String {
@@ -223,13 +240,16 @@ class LocalInferenceEngine {
         val modelName = getModelName().lowercase()
         
         return when {
+            modelName.contains("gemma") -> {
+                "<start_of_turn>user\n$prompt<end_of_turn>\n<start_of_turn>model\n"
+            }
             modelName.contains("llama") -> {
                 "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n$prompt<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
             }
             modelName.contains("phi") -> {
                 "<|user|>\n$prompt<|end|>\n<|assistant|>\n"
             }
-            modelName.contains("qwen") || modelName.contains("gemma") -> {
+            modelName.contains("qwen") -> {
                 "<|im_start|>user\n$prompt<|im_end|>\n<|im_start|>assistant\n"
             }
             else -> prompt
