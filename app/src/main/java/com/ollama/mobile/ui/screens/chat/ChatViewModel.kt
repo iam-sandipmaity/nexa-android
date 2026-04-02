@@ -245,7 +245,7 @@ class ChatViewModel(
             if (!repository.hasApiKey()) {
                 _uiState.value = _uiState.value.copy(
                     isConnected = false,
-                    error = "Add your Ollama API key in Settings to start chatting."
+                    error = "Add your Nexa Cloud API key in Settings to start chatting."
                 )
                 return@launch
             }
@@ -254,13 +254,13 @@ class ChatViewModel(
                 onSuccess = { connected ->
                     _uiState.value = _uiState.value.copy(
                         isConnected = connected,
-                        error = if (connected) null else "Couldn't connect to Ollama Cloud."
+                        error = if (connected) null else "Couldn't connect to Nexa Cloud."
                     )
                 },
                 onFailure = {
                     _uiState.value = _uiState.value.copy(
                         isConnected = false,
-                        error = "Couldn't connect to Ollama Cloud."
+                        error = "Couldn't connect to Nexa Cloud."
                     )
                 }
             )
@@ -354,7 +354,7 @@ class ChatViewModel(
         
         if (!repository.hasApiKey()) {
             _uiState.value = _uiState.value.copy(
-                error = "Add your Ollama API key in Settings before chatting.",
+                error = "Add your Nexa Cloud API key in Settings before chatting.",
                 isConnected = false
             )
             return

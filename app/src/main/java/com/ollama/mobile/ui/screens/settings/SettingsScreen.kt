@@ -158,7 +158,7 @@ fun SettingsScreen(
             SettingsSectionHeader(
                 icon = Icons.Default.Cloud,
                 title = "Cloud Connection",
-                subtitle = "Configure Ollama Cloud API"
+                subtitle = "Configure Nexa Cloud API"
             )
             
             SettingsCard {
@@ -185,7 +185,7 @@ fun SettingsScreen(
                         value = uiState.apiKey,
                         onValueChange = viewModel::updateApiKey,
                         label = { Text("API Key") },
-                        placeholder = { Text("Paste your Ollama API key") },
+                        placeholder = { Text("Paste your Nexa Cloud API key") },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
@@ -540,7 +540,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     HelpItem(number = "1", text = "Get an API key from ollama.com")
-                    HelpItem(number = "2", text = "Add it in Cloud Connection above")
+                    HelpItem(number = "2", text = "Add it in Nexa Cloud Connection above")
                     HelpItem(number = "3", text = "Download models for offline use")
                     HelpItem(number = "4", text = "Chat without internet!")
                 }
@@ -872,7 +872,7 @@ private fun AboutDialog(
                 Text("Version $appVersion", fontWeight = FontWeight.Medium)
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "A hybrid AI chat app for Ollama Cloud and on-device GGUF model inference.",
+                    text = "A hybrid AI chat app for Nexa Cloud and on-device GGUF model inference.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(16.dp))

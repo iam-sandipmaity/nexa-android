@@ -374,7 +374,7 @@ private fun ApiKeySetupDialog(
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text(
-                    "Connect to Ollama Cloud",
+                    "Connect to Nexa Cloud",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -393,7 +393,7 @@ private fun ApiKeySetupDialog(
                     value = apiKey,
                     onValueChange = onApiKeyChange,
                     label = { Text("API Key") },
-                    placeholder = { Text("Paste your Ollama API key") },
+                    placeholder = { Text("Paste your Nexa Cloud API key") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
@@ -434,7 +434,7 @@ private fun ApiKeySetupDialog(
                         } catch (_: Exception) {}
                     }
                 ) {
-                    Text("Get API Key from Ollama")
+                    Text("Get API Key")
                 }
             }
         }
@@ -705,7 +705,7 @@ private fun EmptyStateSection(
         Spacer(modifier = Modifier.height(16.dp))
         
         Text(
-            text = "Welcome to Ollama Mobile",
+            text = "Welcome to Nexa Mobile",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
