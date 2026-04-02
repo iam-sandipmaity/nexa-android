@@ -41,6 +41,13 @@ data class OfflineModelInfo(
 ) {
     val logo: ImageVector
         get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
+    
+    val formattedSize: String
+        get() = when {
+            sizeBytes >= 1_000_000_000 -> String.format("%.1fGB", sizeBytes / 1_000_000_000.0)
+            sizeBytes >= 1_000_000 -> String.format("%.0fMB", sizeBytes / 1_000_000.0)
+            else -> String.format("%dKB", sizeBytes / 1000)
+        }
 }
 
 val familyLogos = mapOf(

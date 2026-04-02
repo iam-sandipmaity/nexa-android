@@ -20,6 +20,7 @@ data class ModelBrowserState(
     val isLoadingLibrary: Boolean = false,
     val libraryError: String? = null,
     val offlineCatalog: List<OfflineModelInfo> = emptyList(),
+    val downloadModels: List<OfflineModelInfo> = emptyList(),
     val downloadedOfflineModels: List<DownloadedOfflineModel> = emptyList(),
     val downloadingOfflineModels: Map<String, Float> = emptyMap(),
     val offlineDownloadStatus: Map<String, String> = emptyMap(),
@@ -47,11 +48,17 @@ class ModelBrowserViewModel(
 
     fun loadModels() {
         viewModelScope.launch {
+            val catalog = offlineRepository.getCatalog()
+            val downloaded = offlineRepository.getDownloadedModels()
+            val downloadedIds = downloaded.map { it.id }.toSet()
+            val availableToDownload = catalog.filterNot { it.id in downloadedIds }
+            
             _uiState.value = _uiState.value.copy(
                 isLoading = true,
                 availableModels = repository.getFallbackModels(),
-                offlineCatalog = offlineRepository.getCatalog(),
-                downloadedOfflineModels = offlineRepository.getDownloadedModels()
+                offlineCatalog = catalog,
+                downloadModels = availableToDownload,
+                downloadedOfflineModels = downloaded
             )
 
             repository.getAvailableModels().fold(
@@ -99,6 +106,18 @@ class ModelBrowserViewModel(
                         libraryError = error.message ?: "Failed to load library"
                     )
                 }
+            )
+        }
+    }
+
+    fun loadOfflineCatalog() {
+        viewModelScope.launch {
+            val catalog = offlineRepository.getCatalog()
+            val downloadedIds = offlineRepository.getDownloadedModels().map { it.id }.toSet()
+            val available = catalog.filterNot { it.id in downloadedIds }
+            _uiState.value = _uiState.value.copy(
+                downloadModels = available,
+                offlineCatalog = catalog
             )
         }
     }
@@ -334,5 +353,22 @@ class ModelBrowserViewModel(
 
     fun getLibraryModelFamilies(): List<String> {
         return _uiState.value.libraryModels.map { it.family }.distinct().sorted()
+    }
+
+    fun getFilteredAvailableModels(): List<OfflineModelInfo> {
+        var models = _uiState.value.downloadModels
+        val downloadedIds = _uiState.value.downloadedOfflineModels.map { it.id }.toSet()
+        models = models.filterNot { it.id in downloadedIds }
+        
+        if (_uiState.value.searchQuery.isNotBlank()) {
+            val query = _uiState.value.searchQuery.lowercase()
+            models = models.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                    it.displayName.contains(query, ignoreCase = true) ||
+                    it.family.contains(query, ignoreCase = true)
+            }
+        }
+        
+        return models
     }
 }
