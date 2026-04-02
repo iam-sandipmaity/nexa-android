@@ -33,6 +33,13 @@ jobs:
           mkdir -p ~/.android
           keytool -genkeypair -v -keystore ~/.android/debug.keystore -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -storepass android -keypass android -dname "CN=Android Debug, OU=Android, O=Android, L=Mountain View, ST=California, C=US"
 
+      - name: Configure release signing vars
+        run: |
+          echo "RELEASE_STORE_FILE=$HOME/.android/debug.keystore" >> $GITHUB_ENV
+          echo "RELEASE_STORE_PASSWORD=android" >> $GITHUB_ENV
+          echo "RELEASE_KEY_ALIAS=androiddebugkey" >> $GITHUB_ENV
+          echo "RELEASE_KEY_PASSWORD=android" >> $GITHUB_ENV
+
       - name: Make gradlew executable
         run: chmod +x gradlew
 
