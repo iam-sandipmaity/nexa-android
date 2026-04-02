@@ -235,7 +235,7 @@ class ModelBrowserViewModel(
                 offlineRepository.addCustomModel(normalised)
             }.onSuccess { model ->
                 _uiState.value = _uiState.value.copy(
-                    importState = ImportState.Success(model),
+                    importState = ImportState.Success("Added ${model.displayName} - starting download"),
                     offlineCatalog = offlineRepository.getCatalog()
                 )
                 downloadOfflineModel(model)

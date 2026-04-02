@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Check
@@ -290,7 +291,7 @@ private fun AvailableModelsTab(
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(onClick = onImportClick) {
-                    Icon(Icons.Default.AddCircle, contentDescription = null)
+                    Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Import Custom Model")
                 }
@@ -316,7 +317,7 @@ private fun AvailableModelsTab(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.AddCircle,
+                    Icons.Default.Add,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
@@ -400,7 +401,7 @@ private fun AvailableModelItem(
                     if (progress != null && progress < 1f) {
                         Spacer(modifier = Modifier.height(4.dp))
                         LinearProgressIndicator(
-                            progress = { progress },
+                            progress = progress,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
