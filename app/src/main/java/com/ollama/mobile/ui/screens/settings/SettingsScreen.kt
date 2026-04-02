@@ -880,7 +880,7 @@ private fun AboutDialog(
                     Icon(Icons.Default.OpenInNew, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Visit Repository")
-                )
+                }
             }
         },
         confirmButton = {
