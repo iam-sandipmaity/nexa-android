@@ -170,7 +170,14 @@ class ModelRepository {
                     )
                 } ?: Result.failure(Exception("Empty response"))
             } else {
-                Result.failure(Exception("Chat failed: ${response.code()}"))
+                val errorMsg = when (response.code()) {
+                    404 -> "Model not found on Ollama Cloud. Some models need to be pulled first using 'ollama pull $modelName'"
+                    401 -> "Invalid API key. Please check your Ollama API key in Settings."
+                    429 -> "Rate limit exceeded. Please wait and try again."
+                    500, 502, 503 -> "Ollama Cloud service error. Please try again later."
+                    else -> "Chat failed: ${response.code()} - ${response.message()}"
+                }
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(e)
