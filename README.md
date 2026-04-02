@@ -1,22 +1,23 @@
-# Ollama Mobile - Cloud Client
+# Nexa - Hybrid AI Chat for Android
 
-Android app for browsing Ollama models and chatting with them through Ollama Cloud.
+Nexa is an Android app for chatting with both cloud-hosted Ollama models and downloaded offline GGUF models.
 
 ## Features
 
-- Browse curated and cloud-listed Ollama models
+- Cloud chat with Ollama models using your API key
+- Offline chat with downloaded GGUF models
+- Import custom offline models from Hugging Face URLs
 - Search and filter models by family
-- Chat directly with models from the app
-- Store your Ollama API key locally on the device
-- No localhost setup required
+- Stop generation during streaming responses
+- Cleaner response rendering for model control tokens
 
 ## Setup
 
-1. Create an API key on `ollama.com`
-2. Open the app settings
-3. Paste your API key
-4. Test the cloud connection
-5. Pick a model and start chatting
+1. Create an API key on `ollama.com` for cloud models
+2. Open the app Settings
+3. Paste your API key and test connection
+4. Pick a cloud model or download/import an offline model
+5. Start chatting
 
 ## Build
 
@@ -38,6 +39,6 @@ Release APK output:
 
 ## Notes
 
-- The app now uses Ollama Cloud instead of a local `localhost:11434` server
-- This does not run models fully on-device
-- True offline on-device model execution would require integrating a mobile inference engine
+- Cloud mode uses Ollama Cloud APIs
+- Offline mode runs local GGUF models through on-device inference integration
+- API keys are stored locally on device settings
