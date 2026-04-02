@@ -17,27 +17,8 @@ class ModelRepository {
     private val api get() = RetrofitClient.getApi()
     private val libraryApi get() = OllamaLibraryClient.getLibraryApi()
 
-package com.ollama.mobile.data.repository
-
-import com.ollama.mobile.data.api.OllamaLibraryClient
-import com.ollama.mobile.data.api.RetrofitClient
-import com.ollama.mobile.data.config.AppConfig
-import com.ollama.mobile.data.model.ChatRequest
-import com.ollama.mobile.data.model.Message
-import com.ollama.mobile.data.model.ModelTag
-import com.ollama.mobile.domain.model.ChatMessage
-import com.ollama.mobile.domain.model.ChatResult
-import com.ollama.mobile.domain.model.LibraryModelInfo
-import com.ollama.mobile.domain.model.ModelSource
-import com.ollama.mobile.domain.model.OllamaModelInfo
-
-class ModelRepository {
-
-    private val api get() = RetrofitClient.getApi()
-    private val libraryApi get() = OllamaLibraryClient.getLibraryApi()
-
     val libraryModels = listOf(
-        LibraryModelInfo("llama3.1", "llama3.1", "Llama 3.1", "Meta's latest state-of-the-art model available in 8B, 70B and 405B", "4.7GB", 4700000000, "Llama", "Cloud", 112500000, true, listOf("8b", "70b", "405b")),
+        LibraryModelInfo("llama3.1", "llama3.1", "Llama 3.1", "Meta's latest state-of-the-art model in 8B, 70B and 405B", "4.7GB", 4700000000, "Llama", "Cloud", 112500000, true, listOf("8b", "70b", "405b")),
         LibraryModelInfo("deepseek-r1", "deepseek-r1", "DeepSeek R1", "Open reasoning model with performance approaching leading models", "4.7GB", 4700000000, "DeepSeek", "Cloud", 81700000, true, listOf("1.5b", "7b", "8b", "14b", "32b", "70b", "671b")),
         LibraryModelInfo("llama3.2", "llama3.2", "Llama 3.2", "Meta's latest with 1B and 3B parameter models", "2.0GB", 2000000000, "Llama", "Cloud", 63500000, true, listOf("1b", "3b")),
         LibraryModelInfo("nomic-embed-text", "nomic-embed-text", "Nomic Embed Text", "High-performing open embedding model with large token context", "274MB", 274000000, "Nomic", "Cloud", 62100000, false, listOf("embedding")),
@@ -49,7 +30,7 @@ class ModelRepository {
         LibraryModelInfo("gemma2", "gemma2", "Gemma 2", "Google's high-performing 2B, 9B, and 27B models", "5.5GB", 5500000000, "Gemma", "Cloud", 18500000, true, listOf("2b", "9b", "27b")),
         LibraryModelInfo("phi4", "phi4", "Phi-4", "Microsoft's latest small model with strong reasoning", "2.3GB", 2300000000, "Phi", "Cloud", 15000000, true, listOf("14b")),
         LibraryModelInfo("llama3.2-vision", "llama3.2-vision", "Llama 3.2 Vision", "Instruction-tuned image reasoning models 11B and 90B", "13GB", 13000000000, "Llama", "Cloud", 4200000, true, listOf("11b", "90b")),
-        LibraryModelInfo("llama3.3", "llama3.3", "Llama 3.3", "State of the art 70B offering similar performance to 405B", "42GB", 42000000000, "Llama", "Cloud", 3600000, true, listOf("70b")),
+        LibraryModelInfo("llama3.3", "llama3.3", "Llama 3.3", "State of the art 70B similar performance to 405B", "42GB", 42000000000, "Llama", "Cloud", 3600000, true, listOf("70b")),
         LibraryModelInfo("llama4", "llama4", "Llama 4", "Meta's latest collection of multimodal models", "50GB", 50000000000, "Llama", "Cloud", 1500000, true, listOf("16x17b", "128x17b")),
         LibraryModelInfo("deepseek-coder-v2", "deepseek-coder-v2", "DeepSeek Coder V2", "Open source code model with excellent performance", "16GB", 16000000000, "DeepSeek", "Cloud", 890000, true, listOf("16b", "24b")),
         LibraryModelInfo("codellama", "codellama", "Code Llama", "Meta's code-specialized model", "3.8GB", 3800000000, "Llama", "Cloud", 8500000, true, listOf("7b", "13b", "34b", "70b")),
@@ -73,7 +54,6 @@ class ModelRepository {
         LibraryModelInfo("dolphin-phi", "dolphin-phi", "Dolphin Phi", "Phi-based model with special capabilities", "1.6GB", 1600000000, "Dolphin", "Cloud", 890000, false, listOf("2.8b")),
         LibraryModelInfo("falcon", "falcon", "Falcon", "TII's language model", "39GB", 39000000000, "Falcon", "Cloud", 3200000, false, listOf("7b", "40b", "180b")),
         LibraryModelInfo("falcon2", "falcon2", "Falcon 2", "TII's latest language model", "11GB", 11000000000, "Falcon", "Cloud", 950000, true, listOf("11b")),
-        LibraryModelInfo("tiiuae-falcon-mamba", "tiiuae-falcon-mamba", "Falcon Mamba", "State space model from TII", "7GB", 7000000000, "Falcon", "Cloud", 650000, false, listOf("7b")),
         LibraryModelInfo("smollm", "smollm", "SmolLM", "Meta's small models with 135M, 360M, and 1.7B", "126MB", 126000000, "Llama", "Cloud", 1800000, false, listOf("135m", "360m", "1.7b")),
         LibraryModelInfo("gemma3-it", "gemma3-it", "Gemma 3 IT", "Instruction-tuned Gemma 3", "8.4GB", 8400000000, "Gemma", "Cloud", 2500000, true, listOf("4b", "12b", "27b")),
         LibraryModelInfo("llama3-gradient", "llama3-gradient", "Llama 3 Gradient", "Continuously trained Llama 3", "4.7GB", 4700000000, "Llama", "Cloud", 680000, false, listOf("8b", "70b"))
