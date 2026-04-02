@@ -41,6 +41,9 @@ private val DarkCodeBackground = Color(0xFF1E1E1E)
 private val LightCodeBackground = Color(0xFFF5F5F5)
 private val DarkHeaderColor = Color(0xFF81D4FA)
 private val LightHeaderColor = Color(0xFF1976D2)
+private val CppKeywordColor = Color(0xFF4FC3F7)
+private val NumberColor = Color(0xFFFFB74D)
+private val StringColor = Color(0xFF81C784)
 
 @Composable
 fun ChatBubble(
@@ -344,8 +347,8 @@ private fun CodeBlock(
         }
         
         Text(
-            text = code,
-            color = textColor.copy(alpha = 0.9f),
+            text = buildHighlightedCode(code),
+            color = textColor.copy(alpha = 0.95f),
             fontFamily = FontFamily.Monospace,
             fontSize = 13.sp,
             lineHeight = 18.sp,
@@ -524,6 +527,46 @@ private fun isMarkdownTableLine(line: String): Boolean {
         return !trimmed.contains(Regex("[-:]+"))
     }
     return false
+}
+
+private fun buildHighlightedCode(code: String) = buildAnnotatedString {
+    val cppKeywords = setOf(
+        "int", "long", "short", "float", "double", "bool", "char", "void", "auto",
+        "if", "else", "switch", "case", "for", "while", "do", "break", "continue", "return",
+        "class", "struct", "public", "private", "protected", "template", "typename", "using",
+        "namespace", "const", "constexpr", "static", "virtual", "override", "include", "std"
+    )
+
+    val tokenRegex = Regex("\"[^\"\\n]*\"|\\b\\d+\\b|\\b[A-Za-z_][A-Za-z0-9_]*\\b")
+    var cursor = 0
+
+    tokenRegex.findAll(code).forEach { match ->
+        if (match.range.first > cursor) {
+            append(code.substring(cursor, match.range.first))
+        }
+
+        val token = match.value
+        when {
+            token.startsWith("\"") && token.endsWith("\"") -> {
+                withStyle(SpanStyle(color = StringColor)) { append(token) }
+            }
+            token.all { it.isDigit() } -> {
+                withStyle(SpanStyle(color = NumberColor)) { append(token) }
+            }
+            token in cppKeywords -> {
+                withStyle(SpanStyle(color = CppKeywordColor, fontWeight = FontWeight.SemiBold)) {
+                    append(token)
+                }
+            }
+            else -> append(token)
+        }
+
+        cursor = match.range.last + 1
+    }
+
+    if (cursor < code.length) {
+        append(code.substring(cursor))
+    }
 }
 
 private fun extractTableContent(lines: List<String>, startIndex: Int): List<List<String>> {

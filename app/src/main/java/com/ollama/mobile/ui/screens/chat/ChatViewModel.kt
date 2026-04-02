@@ -43,6 +43,11 @@ class ChatViewModel(
     private val chatHistoryRepository: ChatHistoryRepository = AppConfig.getChatHistoryRepository()
 ) : ViewModel() {
 
+    private data class StreamProcessResult(
+        val updatedText: String,
+        val shouldStop: Boolean
+    )
+
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
     
@@ -297,16 +302,32 @@ class ChatViewModel(
             streamingJob = viewModelScope.launch {
                 try {
                     val responseBuilder = StringBuilder()
+                    var shouldStopGeneration = false
                     
                     inferenceEngine?.chat(newMessages)?.collect { token ->
-                        responseBuilder.append(token)
+                        val current = processStreamingToken(responseBuilder.toString(), token)
+                        responseBuilder.clear()
+                        responseBuilder.append(current.updatedText)
                         _uiState.value = _uiState.value.copy(
                             streamingResponse = responseBuilder.toString()
                         )
+
+                        if (current.shouldStop) {
+                            shouldStopGeneration = true
+                            inferenceEngine?.stop()
+                            return@collect
+                        }
                     }
                     
                     // Done streaming
-                    val fullResponse = responseBuilder.toString()
+                    val fullResponse = sanitizeModelArtifacts(responseBuilder.toString())
+                    if (fullResponse.isBlank() && shouldStopGeneration) {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            streamingResponse = ""
+                        )
+                        return@launch
+                    }
                     val assistantMessage = ChatMessage(
                         role = "assistant",
                         content = fullResponse
@@ -357,7 +378,7 @@ class ChatViewModel(
                 onSuccess = { result ->
                     val assistantMessage = ChatMessage(
                         role = result.message.role,
-                        content = result.message.content
+                        content = sanitizeModelArtifacts(result.message.content)
                     )
                     _uiState.value = _uiState.value.copy(
                         messages = _uiState.value.messages + assistantMessage,
@@ -449,4 +470,44 @@ class ChatViewModel(
     private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
 
     private fun isLibraryModel(modelName: String): Boolean = modelName.startsWith("library:")
+
+    private fun processStreamingToken(currentText: String, incomingToken: String): StreamProcessResult {
+        val appended = currentText + incomingToken
+        val normalized = sanitizeModelArtifacts(appended)
+
+        val stopMarkers = listOf(
+            "<|im_end|>",
+            "<|eot_id|>",
+            "<|end|>",
+            "<|end_of_text|>",
+            "<|im_start|>user",
+            "<|start_header_id|>user<|end_header_id|>"
+        )
+
+        val stopIndex = stopMarkers
+            .map { marker -> normalized.indexOf(marker) }
+            .filter { it >= 0 }
+            .minOrNull() ?: -1
+
+        return if (stopIndex >= 0) {
+            StreamProcessResult(
+                updatedText = sanitizeModelArtifacts(normalized.substring(0, stopIndex)),
+                shouldStop = true
+            )
+        } else {
+            StreamProcessResult(updatedText = normalized, shouldStop = false)
+        }
+    }
+
+    private fun sanitizeModelArtifacts(raw: String): String {
+        return raw
+            .replace("<|im_start|>", "")
+            .replace("<|im_end|>", "")
+            .replace("<|eot_id|>", "")
+            .replace("<|end|>", "")
+            .replace("<|assistant|>", "")
+            .replace("<|user|>", "")
+            .replace("<|start_header_id|>", "")
+            .replace("<|end_header_id|>", "")
+    }
 }

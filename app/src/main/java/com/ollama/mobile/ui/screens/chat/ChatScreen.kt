@@ -277,7 +277,9 @@ fun ChatScreen(
                             }
                         }
                     },
-                    enabled = !uiState.isLoading
+                    onStop = viewModel::stopGeneration,
+                    enabled = !uiState.isLoading,
+                    isGenerating = uiState.isLoading
                 )
             }
         }
@@ -444,7 +446,9 @@ private fun MessageInputBox(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
-    enabled: Boolean
+    onStop: () -> Unit,
+    enabled: Boolean,
+    isGenerating: Boolean
 ) {
     val focusManager = LocalFocusManager.current
     
@@ -480,34 +484,52 @@ private fun MessageInputBox(
             
             Spacer(modifier = Modifier.width(8.dp))
             
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(
-                        if (enabled && value.isNotBlank()) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+            if (isGenerating) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.error)
+                        .clickable(onClick = onStop),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Stop,
+                        contentDescription = "Stop",
+                        tint = MaterialTheme.colorScheme.onError,
+                        modifier = Modifier.size(20.dp)
                     )
-                    .clickable(
-                        enabled = enabled && value.isNotBlank(),
-                        onClick = {
-                            focusManager.clearFocus()
-                            onSend()
-                        }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Send,
-                    contentDescription = "Send",
-                    tint = if (enabled && value.isNotBlank()) 
-                        MaterialTheme.colorScheme.onPrimary 
-                    else 
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                    modifier = Modifier.size(20.dp)
-                )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(
+                            if (enabled && value.isNotBlank())
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+                        )
+                        .clickable(
+                            enabled = enabled && value.isNotBlank(),
+                            onClick = {
+                                focusManager.clearFocus()
+                                onSend()
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Send,
+                        contentDescription = "Send",
+                        tint = if (enabled && value.isNotBlank())
+                            MaterialTheme.colorScheme.onPrimary
+                        else
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

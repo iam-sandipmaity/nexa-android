@@ -94,8 +94,11 @@ class LocalInferenceEngine {
         
         try {
             val formattedPrompt = formatPrompt(prompt)
+            var previousChunk = ""
             currentModel.generateStream(formattedPrompt).collect { token ->
-                emit(token)
+                val delta = extractDeltaChunk(previousChunk, token)
+                previousChunk = token
+                if (delta.isNotEmpty()) emit(delta)
             }
         } catch (e: Exception) {
             emit("Error: ${e.message}")
@@ -114,8 +117,11 @@ class LocalInferenceEngine {
         
         try {
             val prompt = buildPrompt(messages)
+            var previousChunk = ""
             currentModel.generateStream(prompt).collect { token ->
-                emit(token)
+                val delta = extractDeltaChunk(previousChunk, token)
+                previousChunk = token
+                if (delta.isNotEmpty()) emit(delta)
             }
         } catch (e: Exception) {
             emit("Error: ${e.message}")
@@ -227,6 +233,16 @@ class LocalInferenceEngine {
                 "<|im_start|>user\n$prompt<|im_end|>\n<|im_start|>assistant\n"
             }
             else -> prompt
+        }
+    }
+
+    private fun extractDeltaChunk(previousChunk: String, currentChunk: String): String {
+        if (currentChunk.isEmpty()) return ""
+        if (previousChunk.isEmpty()) return currentChunk
+        return if (currentChunk.startsWith(previousChunk)) {
+            currentChunk.removePrefix(previousChunk)
+        } else {
+            currentChunk
         }
     }
 }
