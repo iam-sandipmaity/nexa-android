@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -15,6 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import com.ollama.mobile.data.config.AppConfig
 
@@ -38,6 +42,7 @@ fun OllamaMobileTheme(
     val systemDark = isSystemInDarkTheme()
     
     val themeMode by AppConfig.themeModeFlow.collectAsState()
+    val fontSize by AppConfig.fontSizeFlow.collectAsState()
     
     val darkTheme = when (themeMode) {
         AppConfig.THEME_DARK -> true
@@ -57,6 +62,31 @@ fun OllamaMobileTheme(
         else -> LightColorScheme
     }
 
+    val fontScale = when (fontSize) {
+        AppConfig.FONT_SMALL -> 0.85f
+        AppConfig.FONT_LARGE -> 1.15f
+        else -> 1f
+    }
+
+    val dynamicTypography = Typography(
+        bodyLarge = TextStyle(
+            fontSize = (16 * fontScale).sp,
+            lineHeight = (24 * fontScale).sp
+        ),
+        titleLarge = TextStyle(
+            fontSize = (22 * fontScale).sp,
+            lineHeight = (28 * fontScale).sp
+        ),
+        titleMedium = TextStyle(
+            fontSize = (18 * fontScale).sp,
+            lineHeight = (24 * fontScale).sp
+        ),
+        labelSmall = TextStyle(
+            fontSize = (11 * fontScale).sp,
+            lineHeight = (16 * fontScale).sp
+        )
+    )
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -74,7 +104,7 @@ fun OllamaMobileTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = dynamicTypography,
         content = content
     )
 }

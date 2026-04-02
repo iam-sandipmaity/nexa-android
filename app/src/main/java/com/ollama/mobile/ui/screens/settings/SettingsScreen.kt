@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.ollama.mobile.data.config.AppConfig
 import com.ollama.mobile.domain.model.familyLogos
+import com.ollama.mobile.ui.components.SocialIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -437,14 +438,15 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                Icons.Default.Code,
+                                SocialIcons.Github,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.Unspecified
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("GitHub")
                         }
-                        
+
                         OutlinedButton(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://linkedin.com/in/iam-sandipmaity"))
@@ -453,17 +455,18 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                Icons.Default.Work,
+                                SocialIcons.LinkedIn,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.Unspecified
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("LinkedIn")
                         }
                     }
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -476,14 +479,15 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                Icons.Default.AlignHorizontalLeft,
+                                SocialIcons.X,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.Unspecified
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("X")
                         }
-                        
+
                         OutlinedButton(
                             onClick = {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/iam_sandipmaity"))
@@ -492,9 +496,10 @@ fun SettingsScreen(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                Icons.Default.CameraAlt,
+                                SocialIcons.Instagram,
                                 contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(18.dp),
+                                tint = Color.Unspecified
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Instagram")

@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Box
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -235,6 +236,17 @@ private fun RichMarkdownText(
                 // Horizontal rule
                 line.trim() == "---" || line.trim() == "***" || line.trim() == "___" -> {
                     HorizontalLine(color = textColor.copy(alpha = 0.3f))
+                }
+
+                // Table detection
+                isMarkdownTableLine(line) -> {
+                    TableBlock(
+                        lines = extractTableContent(lines, i),
+                        textColor = textColor,
+                        headerColor = headerColor,
+                        codeBackground = codeBackground
+                    )
+                    i = skipTableLines(lines, i)
                 }
                 
                 // Empty line
@@ -515,4 +527,102 @@ private fun InlineFormattedText(
         color = textColor,
         style = MaterialTheme.typography.bodyLarge
     )
+}
+
+private fun isMarkdownTableLine(line: String): Boolean {
+    val trimmed = line.trim()
+    if (trimmed.isEmpty()) return false
+    if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+        return !trimmed.contains(Regex("[-:]+"))
+    }
+    return false
+}
+
+private fun extractTableContent(lines: List<String>, startIndex: Int): List<List<String>> {
+    val tableRows = mutableListOf<List<String>>()
+    var i = startIndex
+    
+    while (i < lines.size) {
+        val line = lines[i].trim()
+        if (line.isEmpty() || !line.startsWith("|")) break
+        
+        if (line.contains(Regex("[-:|]+")) && line.contains("---")) {
+            i++
+            continue
+        }
+        
+        val cells = line
+            .removePrefix("|")
+            .removeSuffix("|")
+            .split("|")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+        
+        if (cells.isNotEmpty()) {
+            tableRows.add(cells)
+        }
+        i++
+    }
+    
+    return tableRows
+}
+
+private fun skipTableLines(lines: List<String>, startIndex: Int): Int {
+    var i = startIndex
+    while (i < lines.size) {
+        val line = lines[i].trim()
+        if (line.isEmpty() || (!line.startsWith("|"))) break
+        i++
+    }
+    return i - 1
+}
+
+@Composable
+private fun TableBlock(
+    lines: List<List<String>>,
+    textColor: Color,
+    headerColor: Color,
+    codeBackground: Color
+) {
+    if (lines.isEmpty()) return
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(codeBackground.copy(alpha = 0.1f))
+    ) {
+        lines.forEachIndexed { index, row ->
+            val isHeader = index == 0
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        if (isHeader) headerColor.copy(alpha = 0.2f) 
+                        else Color.Transparent
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                row.forEach { cell ->
+                    Text(
+                        text = cell,
+                        color = if (isHeader) headerColor else textColor,
+                        fontWeight = if (isHeader) FontWeight.Bold else FontWeight.Normal,
+                        fontSize = if (isHeader) 14.sp else 13.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            
+            if (isHeader) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(headerColor.copy(alpha = 0.5f))
+                )
+            }
+        }
+    }
 }
