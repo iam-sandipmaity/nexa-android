@@ -437,9 +437,7 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                SocialIcons.Github,
-                                contentDescription = null,
+                            SocialIcons.Github(
                                 modifier = Modifier.size(18.dp),
                                 tint = Color.Unspecified
                             )
@@ -454,9 +452,7 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                SocialIcons.LinkedIn,
-                                contentDescription = null,
+                            SocialIcons.LinkedIn(
                                 modifier = Modifier.size(18.dp),
                                 tint = Color.Unspecified
                             )
@@ -478,9 +474,7 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                SocialIcons.X,
-                                contentDescription = null,
+                            SocialIcons.X(
                                 modifier = Modifier.size(18.dp),
                                 tint = Color.Unspecified
                             )
@@ -495,9 +489,7 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                SocialIcons.Instagram,
-                                contentDescription = null,
+                            SocialIcons.Instagram(
                                 modifier = Modifier.size(18.dp),
                                 tint = Color.Unspecified
                             )
