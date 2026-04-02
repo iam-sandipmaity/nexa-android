@@ -491,7 +491,7 @@ class ChatViewModel(
             .filter { it >= 0 }
             .minOrNull() ?: -1
 
-        if (stopIndex >= 0) {
+        return if (stopIndex >= 0) {
             StreamProcessResult(
                 updatedText = sanitizeModelArtifacts(normalized.substring(0, stopIndex)),
                 shouldStop = true
