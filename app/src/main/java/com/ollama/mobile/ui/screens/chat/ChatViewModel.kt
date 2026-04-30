@@ -1,6 +1,7 @@
 package com.ollama.mobile.ui.screens.chat
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ollama.mobile.data.config.AppConfig
@@ -10,6 +11,7 @@ import com.ollama.mobile.data.repository.OfflineModelRepository
 import com.ollama.mobile.data.inference.LocalInferenceEngine
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.MessageAttachment
 import com.ollama.mobile.domain.model.OllamaModelInfo
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import java.io.File
+import java.io.FileOutputStream
 import java.util.UUID
 
 data class ChatUiState(
@@ -34,7 +37,8 @@ data class ChatUiState(
     val chatId: String? = null,
     val availableModels: List<OllamaModelInfo> = emptyList(),
     val downloadedModels: List<DownloadedOfflineModel> = emptyList(),
-    val chatHistory: List<ChatHistoryRepository.ChatHistoryEntry> = emptyList()
+    val chatHistory: List<ChatHistoryRepository.ChatHistoryEntry> = emptyList(),
+    val pendingAttachments: List<MessageAttachment> = emptyList()
 )
 
 class ChatViewModel(
@@ -89,7 +93,7 @@ class ChatViewModel(
                 val history = chatHistoryRepository.getAllHistory().first()
                 _uiState.value = _uiState.value.copy(chatHistory = history)
             } catch (e: Exception) {
-                // Ignore errors
+                _uiState.value = _uiState.value.copy(error = "Failed to delete chat: ${e.message}")
             }
         }
     }
@@ -181,7 +185,7 @@ class ChatViewModel(
                     )
                 }
             } catch (e: Exception) {
-                // Ignore errors loading history
+                _uiState.value = _uiState.value.copy(error = "Failed to load chat: ${e.message}")
             }
         }
     }
@@ -271,9 +275,81 @@ class ChatViewModel(
         _uiState.value = _uiState.value.copy(inputText = text)
     }
 
+    fun addAttachment(context: Context, uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val contentResolver = context.contentResolver
+                val fileName = getFileNameFromUri(context, uri)
+                val mimeType = contentResolver.getType(uri) ?: "application/octet-stream"
+                val fileSize = contentResolver.openInputStream(uri)?.use { it.available().toLong() } ?: 0L
+                
+                val attachment = MessageAttachment(
+                    uri = uri.toString(),
+                    fileName = fileName,
+                    mimeType = mimeType,
+                    fileSize = fileSize
+                )
+                
+                val currentAttachments = _uiState.value.pendingAttachments.toMutableList()
+                currentAttachments.add(attachment)
+                _uiState.value = _uiState.value.copy(pendingAttachments = currentAttachments)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = "Failed to add file: ${e.message}")
+            }
+        }
+    }
+
+    fun removeAttachment(index: Int) {
+        val currentAttachments = _uiState.value.pendingAttachments.toMutableList()
+        if (index in currentAttachments.indices) {
+            currentAttachments.removeAt(index)
+            _uiState.value = _uiState.value.copy(pendingAttachments = currentAttachments)
+        }
+    }
+
+    fun clearAttachments() {
+        _uiState.value = _uiState.value.copy(pendingAttachments = emptyList())
+    }
+
+    private fun getFileNameFromUri(context: Context, uri: Uri): String {
+        val contentResolver = context.contentResolver
+        val cursor = contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val displayNameIndex = it.getColumnIndex("_display_name")
+                if (displayNameIndex != -1) {
+                    val displayName = it.getString(displayNameIndex)
+                    if (!displayName.isNullOrBlank()) return displayName
+                }
+            }
+        }
+        return uri.lastPathSegment?.substringAfterLast("/") ?: "unknown_file"
+    }
+
+    private fun readUriContent(context: Context, uri: Uri): String? {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.bufferedReader().use { it.readText() }
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun encodeImageToBase64(context: Context, uri: Uri): String? {
+        return try {
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                android.util.Base64.encodeToString(inputStream.readBytes(), android.util.Base64.NO_WRAP)
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun sendMessage() {
         val text = _uiState.value.inputText.trim()
-        if (text.isBlank() || _uiState.value.isLoading) return
+        val attachments = _uiState.value.pendingAttachments
+        if ((text.isBlank() && attachments.isEmpty()) || _uiState.value.isLoading) return
         
         if (isOfflineModel(_uiState.value.selectedModel)) {
             if (!_uiState.value.isModelLoaded) {
@@ -283,7 +359,7 @@ class ChatViewModel(
                 return
             }
             
-            val userMessage = ChatMessage(role = "user", content = text)
+            val userMessage = ChatMessage(role = "user", content = text, attachments = attachments)
             val newMessages = _uiState.value.messages + userMessage
             
             _uiState.value = _uiState.value.copy(
@@ -291,7 +367,8 @@ class ChatViewModel(
                 inputText = "",
                 isLoading = true,
                 streamingResponse = "",
-                error = null
+                error = null,
+                pendingAttachments = emptyList()
             )
             
             // Save chat history immediately after user message
@@ -360,14 +437,37 @@ class ChatViewModel(
             return
         }
 
-        val userMessage = ChatMessage(role = "user", content = text)
+        val context = AppConfig.getAppContext()
+        val imageAttachments = attachments.filter { it.mimeType.startsWith("image/") }
+        val base64Images = imageAttachments.mapNotNull { encodeImageToBase64(context, Uri.parse(it.uri)) }
+        
+        val contentWithFileContext = if (attachments.isNotEmpty()) {
+            val fileDescriptions = attachments.map { attachment ->
+                when {
+                    attachment.mimeType.startsWith("image/") -> "[Image: ${attachment.fileName}]"
+                    attachment.mimeType.startsWith("text/") -> {
+                        val content = readUriContent(context, Uri.parse(attachment.uri))
+                        if (content != null) "[File: ${attachment.fileName}\\nContent: ${content.take(500)}]"
+                        else "[File: ${attachment.fileName}]"
+                    }
+                    else -> "[File: ${attachment.fileName} (${attachment.mimeType})]"
+                }
+            }.joinToString("\n")
+            
+            if (text.isNotBlank()) "$fileDescriptions\n\n$text" else fileDescriptions
+        } else {
+            text
+        }
+
+        val userMessage = ChatMessage(role = "user", content = contentWithFileContext)
         val newMessages = _uiState.value.messages + userMessage
 
         _uiState.value = _uiState.value.copy(
             messages = newMessages,
             inputText = "",
             isLoading = true,
-            error = null
+            error = null,
+            pendingAttachments = emptyList()
         )
 
         // Save chat history immediately after user message
@@ -443,11 +543,10 @@ class ChatViewModel(
                         messages = messages
                     )
                 )
-                // Refresh history list in UI
                 val history = chatHistoryRepository.getAllHistory().first()
                 _uiState.value = _uiState.value.copy(chatHistory = history)
             } catch (e: Exception) {
-                // Ignore save errors
+                _uiState.value = _uiState.value.copy(error = "Failed to save chat: ${e.message}")
             }
         }
     }
@@ -459,11 +558,14 @@ class ChatViewModel(
         inferenceEngine?.free()
     }
 
-    fun getChatHistory(): List<ChatHistoryRepository.ChatHistoryEntry> {
-        return try {
-            runBlocking { chatHistoryRepository.getAllHistory().first() }
-        } catch (e: Exception) {
-            emptyList()
+    fun getChatHistory(callback: (List<ChatHistoryRepository.ChatHistoryEntry>) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val history = chatHistoryRepository.getAllHistory().first()
+                callback(history)
+            } catch (e: Exception) {
+                callback(emptyList())
+            }
         }
     }
 
