@@ -137,7 +137,15 @@ data class LibraryModelInfo(
 
 data class ChatMessage(
     val role: String,
-    val content: String
+    val content: String,
+    val attachments: List<MessageAttachment> = emptyList()
+)
+
+data class MessageAttachment(
+    val uri: String,
+    val fileName: String,
+    val mimeType: String,
+    val fileSize: Long
 )
 
 data class ResponseMessage(
