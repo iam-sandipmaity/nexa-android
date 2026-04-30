@@ -335,7 +335,7 @@ fun SettingsScreen(
                     icon = Icons.Default.History,
                     title = "Chat History",
                     subtitle = "${uiState.chatCount} conversations",
-                    onClick = { /* TODO: View history */ },
+                    onClick = { viewModel.viewChatHistory() },
                     action = {
                         TextButton(onClick = { showClearHistoryDialog = true }) {
                             Text("Clear All", color = MaterialTheme.colorScheme.error)
@@ -349,7 +349,10 @@ fun SettingsScreen(
                     icon = Icons.Default.DeleteForever,
                     title = "Clear All Data",
                     subtitle = "Delete all app data and settings",
-                    onClick = { /* TODO: Clear all data */ },
+                    onClick = {
+                        viewModel.clearAllData()
+                        openUrl("android-settings://app")
+                    },
                     isDangerous = true
                 )
             }
