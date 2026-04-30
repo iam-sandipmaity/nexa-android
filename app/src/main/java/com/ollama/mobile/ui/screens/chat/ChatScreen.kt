@@ -3,6 +3,8 @@ package com.ollama.mobile.ui.screens.chat
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -34,6 +36,7 @@ import com.ollama.mobile.data.config.AppConfig
 import com.ollama.mobile.data.repository.ChatHistoryRepository
 import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
+import com.ollama.mobile.domain.model.MessageAttachment
 import com.ollama.mobile.domain.model.OllamaModelInfo
 import com.ollama.mobile.ui.components.ChatBubble
 import com.ollama.mobile.ui.components.LoadingIndicator
@@ -63,6 +66,14 @@ fun ChatScreen(
     var modelSearchQuery by remember { mutableStateOf("") }
     var inputText by remember { mutableStateOf("") }
     var showNoModelWarning by remember { mutableStateOf(false) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris: List<Uri> ->
+        uris.forEach { uri ->
+            viewModel.addAttachment(context, uri)
+        }
+    }
 
     LaunchedEffect(Unit) {
         val hasApiKey = AppConfig.hasApiKey()
@@ -266,7 +277,7 @@ fun ChatScreen(
                     value = inputText,
                     onValueChange = { inputText = it },
                     onSend = {
-                        if (inputText.isNotBlank()) {
+                        if (inputText.isNotBlank() || uiState.pendingAttachments.isNotEmpty()) {
                             if (uiState.selectedModel.isEmpty()) {
                                 showNoModelWarning = true
                                 inputText = ""
@@ -279,8 +290,18 @@ fun ChatScreen(
                     },
                     onStop = viewModel::stopGeneration,
                     enabled = !uiState.isLoading,
-                    isGenerating = uiState.isLoading
+                    isGenerating = uiState.isLoading,
+                    pendingAttachments = uiState.pendingAttachments,
+                    onAttachFile = { filePickerLauncher.launch("*/*") },
+                    onRemoveAttachment = viewModel::removeAttachment
                 )
+
+                if (uiState.pendingAttachments.isNotEmpty()) {
+                    AttachmentChips(
+                        attachments = uiState.pendingAttachments,
+                        onRemove = viewModel::removeAttachment
+                    )
+                }
             }
         }
 
@@ -448,7 +469,10 @@ private fun MessageInputBox(
     onSend: () -> Unit,
     onStop: () -> Unit,
     enabled: Boolean,
-    isGenerating: Boolean
+    isGenerating: Boolean,
+    pendingAttachments: List<MessageAttachment> = emptyList(),
+    onAttachFile: () -> Unit = {},
+    onRemoveAttachment: (Int) -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     
@@ -463,6 +487,17 @@ private fun MessageInputBox(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
+            IconButton(
+                onClick = onAttachFile,
+                modifier = Modifier.align(Alignment.Bottom)
+            ) {
+                Icon(
+                    Icons.Default.AttachFile,
+                    contentDescription = "Attach file",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -950,6 +985,70 @@ private fun ModelListItem(
                     Icons.Default.CheckCircle,
                     contentDescription = "Selected",
                     tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttachmentChips(
+    attachments: List<MessageAttachment>,
+    onRemove: (Int) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        attachments.forEachIndexed { index, attachment ->
+            AttachmentChip(
+                attachment = attachment,
+                onRemove = { onRemove(index) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachmentChip(
+    attachment: MessageAttachment,
+    onRemove: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                if (attachment.mimeType.startsWith("image/")) Icons.Default.Image
+                else Icons.Default.Description,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Text(
+                text = attachment.fileName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 1
+            )
+            IconButton(
+                onClick = onRemove,
+                modifier = Modifier.size(20.dp)
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Remove",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }
