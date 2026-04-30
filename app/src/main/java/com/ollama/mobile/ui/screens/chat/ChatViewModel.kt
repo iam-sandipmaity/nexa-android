@@ -359,7 +359,27 @@ class ChatViewModel(
                 return
             }
             
-            val userMessage = ChatMessage(role = "user", content = text, attachments = attachments)
+            val context = AppConfig.getAppContext()
+            
+            val contentWithFileContext = if (attachments.isNotEmpty()) {
+                val fileDescriptions = attachments.map { attachment ->
+                    when {
+                        attachment.mimeType.startsWith("image/") -> "[Image attached: ${attachment.fileName}]"
+                        attachment.mimeType.startsWith("text/") -> {
+                            val content = readUriContent(context, Uri.parse(attachment.uri))
+                            if (content != null) "[File: ${attachment.fileName}\nContent: ${content.take(2000)}]"
+                            else "[File: ${attachment.fileName}]"
+                        }
+                        else -> "[File attached: ${attachment.fileName} (${attachment.mimeType})]"
+                    }
+                }.joinToString("\n")
+                
+                if (text.isNotBlank()) "$fileDescriptions\n\n$text" else fileDescriptions
+            } else {
+                text
+            }
+            
+            val userMessage = ChatMessage(role = "user", content = contentWithFileContext, attachments = attachments)
             val newMessages = _uiState.value.messages + userMessage
             
             _uiState.value = _uiState.value.copy(
@@ -438,19 +458,17 @@ class ChatViewModel(
         }
 
         val context = AppConfig.getAppContext()
-        val imageAttachments = attachments.filter { it.mimeType.startsWith("image/") }
-        val base64Images = imageAttachments.mapNotNull { encodeImageToBase64(context, Uri.parse(it.uri)) }
         
         val contentWithFileContext = if (attachments.isNotEmpty()) {
             val fileDescriptions = attachments.map { attachment ->
                 when {
-                    attachment.mimeType.startsWith("image/") -> "[Image: ${attachment.fileName}]"
+                    attachment.mimeType.startsWith("image/") -> "[Image attached: ${attachment.fileName}]"
                     attachment.mimeType.startsWith("text/") -> {
                         val content = readUriContent(context, Uri.parse(attachment.uri))
-                        if (content != null) "[File: ${attachment.fileName}\\nContent: ${content.take(500)}]"
+                        if (content != null) "[File: ${attachment.fileName}\nContent: ${content.take(2000)}]"
                         else "[File: ${attachment.fileName}]"
                     }
-                    else -> "[File: ${attachment.fileName} (${attachment.mimeType})]"
+                    else -> "[File attached: ${attachment.fileName} (${attachment.mimeType})]"
                 }
             }.joinToString("\n")
             
