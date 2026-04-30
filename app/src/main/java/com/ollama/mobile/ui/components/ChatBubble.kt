@@ -3,6 +3,7 @@ package com.ollama.mobile.ui.components
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -11,15 +12,19 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -30,7 +35,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.ollama.mobile.domain.model.ChatMessage
+import com.ollama.mobile.domain.model.MessageAttachment
 import com.ollama.mobile.ui.theme.AssistantBubble
 import com.ollama.mobile.ui.theme.AssistantBubbleLight
 import com.ollama.mobile.ui.theme.UserBubble
@@ -88,6 +95,11 @@ fun ChatBubble(
                 .padding(12.dp)
         ) {
             Column {
+                if (message.attachments.isNotEmpty()) {
+                    AttachmentList(attachments = message.attachments)
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                
                 SelectionContainer {
                     if (isUser) {
                         Text(
@@ -655,5 +667,72 @@ private fun TableBlock(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun AttachmentList(attachments: List<MessageAttachment>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        attachments.forEach { attachment ->
+            AttachmentItem(attachment = attachment)
+        }
+    }
+}
+
+@Composable
+private fun AttachmentItem(attachment: MessageAttachment) {
+    val isImage = attachment.mimeType.startsWith("image/")
+    
+    if (isImage) {
+        AsyncImage(
+            model = attachment.uri,
+            contentDescription = attachment.fileName,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp)),
+            contentScale = ContentScale.Fit
+        )
+    } else {
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+            tonalElevation = 1.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Default.Description,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = attachment.fileName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = formatFileSize(attachment.fileSize),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    return when {
+        bytes >= 1_000_000_000 -> String.format("%.1f GB", bytes / 1_000_000_000.0)
+        bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000.0)
+        bytes >= 1000 -> String.format("%.1f KB", bytes / 1000.0)
+        else -> "$bytes B"
     }
 }
