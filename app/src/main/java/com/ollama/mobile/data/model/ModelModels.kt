@@ -10,7 +10,8 @@ data class ChatRequest(
 
 data class Message(
     val role: String,
-    val content: String
+    val content: String,
+    val images: List<String>? = null
 )
 
 data class ChatResponse(
