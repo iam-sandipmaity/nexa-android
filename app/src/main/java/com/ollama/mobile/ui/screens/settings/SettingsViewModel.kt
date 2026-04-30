@@ -147,6 +147,38 @@ class SettingsViewModel(
                 historyRepo.clearAllHistory()
                 _uiState.value = _uiState.value.copy(chatCount = 0)
             } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy()
+            }
+        }
+    }
+
+    fun viewChatHistory() {
+        viewModelScope.launch {
+            try {
+                val historyRepo = AppConfig.getChatHistoryRepository()
+                val history = historyRepo.getAllHistory().first()
+                _uiState.value = _uiState.value.copy(chatCount = history.size)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            try {
+                val context = AppConfig.getAppContext()
+                context.cacheDir.deleteRecursively()
+                context.filesDir.deleteRecursively()
+                val prefs = context.getSharedPreferences("ollama_mobile_config", Context.MODE_PRIVATE)
+                prefs.edit().clear().apply()
+                val historyRepo = AppConfig.getChatHistoryRepository()
+                historyRepo.clearAllHistory()
+                _uiState.value = SettingsUiState(
+                    baseUrl = "https://ollama.com/",
+                    apiKey = ""
+                )
+            } catch (e: Exception) {
                 // Ignore
             }
         }
