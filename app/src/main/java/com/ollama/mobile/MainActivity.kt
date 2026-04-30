@@ -23,9 +23,9 @@ import com.ollama.mobile.ui.theme.OllamaMobileTheme
 
 class MainActivity : ComponentActivity() {
     
-    private var hasError by mutableStateOf(false)
-    private var errorMessage by mutableStateOf("")
-    private var crashLog by mutableStateOf("")
+    private var hasError = false
+    private var errorMessage = ""
+    private var crashLog = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,12 +34,11 @@ class MainActivity : ComponentActivity() {
         CrashLogger.init(cacheDir)
         CrashLogger.log("MainActivity.onCreate START")
         
+        val errorHandler = ErrorHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             CrashLogger.log("CRASH: ${thread.name}")
             CrashLogger.logException(throwable)
-            errorMessage = throwable.message ?: "Unknown error"
-            crashLog = CrashLogger.getCrashLog() ?: ""
-            hasError = true
+            errorHandler.showError(throwable.message ?: "Unknown error", CrashLogger.getCrashLog() ?: "")
         }
         
         try {
@@ -50,8 +49,8 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background
                     ) {
-                        if (hasError) {
-                            ErrorScreen(errorMessage, crashLog)
+                        if (errorHandler.hasError.value) {
+                            ErrorScreen(errorHandler.errorMessage.value, errorHandler.crashLog.value)
                         } else {
                             OllamaApp()
                         }
@@ -61,15 +60,25 @@ class MainActivity : ComponentActivity() {
             CrashLogger.log("Content set successfully")
         } catch (e: Exception) {
             CrashLogger.logException(e)
-            errorMessage = e.message ?: "Init error"
-            crashLog = CrashLogger.getCrashLog() ?: ""
-            hasError = true
+            errorHandler.showError(e.message ?: "Init error", CrashLogger.getCrashLog() ?: "")
             setContent {
                 OllamaMobileTheme {
-                    ErrorScreen(errorMessage, crashLog)
+                    ErrorScreen(errorHandler.errorMessage.value, errorHandler.crashLog.value)
                 }
             }
         }
+    }
+}
+
+class ErrorHandler {
+    val hasError = mutableStateOf(false)
+    val errorMessage = mutableStateOf("")
+    val crashLog = mutableStateOf("")
+
+    fun showError(message: String, log: String) {
+        hasError.value = true
+        errorMessage.value = message
+        crashLog.value = log
     }
 }
 
