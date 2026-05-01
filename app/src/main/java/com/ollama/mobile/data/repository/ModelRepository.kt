@@ -62,6 +62,9 @@ class ModelRepository {
     )
 
     val curatedModels = listOf(
+        OllamaModelInfo("gemma3", "gemma3", "Gemma 3", "Google's multimodal model with image understanding", "8.4GB", 8_400_000_000, "Gemma", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("llama3.2-vision", "llama3.2-vision", "Llama 3.2 Vision", "Meta's vision-capable model for image reasoning", "13GB", 13_000_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
+        OllamaModelInfo("llama4", "llama4", "Llama 4", "Meta's multimodal model family with image support", "50GB", 50_000_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
         OllamaModelInfo("llama3.2", "llama3.2", "Llama 3.2", "Latest Meta LLM with excellent reasoning", "2.0GB", 2_000_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
         OllamaModelInfo("llama3.1", "llama3.1", "Llama 3.1", "Powerful open-source LLM by Meta", "4.3GB", 4_300_000_000, "Llama", "Cloud hosted", ModelSource.CURATED),
         OllamaModelInfo("gemma2:2b", "gemma2:2b", "Gemma 2B", "Google's efficient 2B model", "1.6GB", 1_600_000_000, "Gemma", "Cloud hosted", ModelSource.CURATED),
@@ -111,7 +114,9 @@ class ModelRepository {
                 return Result.failure(Exception("Failed to load cloud models: ${response.code()}"))
             }
 
-            val models = response.body()?.models?.map(::mapRemoteModel)?.sortedBy { it.displayName }.orEmpty()
+            val models = mergeWithCuratedModels(
+                response.body()?.models?.map(::mapRemoteModel).orEmpty()
+            )
             if (models.isEmpty()) Result.failure(Exception("No models available for this account"))
             else Result.success(models)
         } catch (e: Exception) {
@@ -177,7 +182,7 @@ class ModelRepository {
         }
     }
 
-    fun getFallbackModels(): List<OllamaModelInfo> = curatedModels
+    fun getFallbackModels(): List<OllamaModelInfo> = curatedModels.sortedBy { it.displayName }
 
     fun hasApiKey(): Boolean = AppConfig.hasApiKey()
 
@@ -194,6 +199,20 @@ class ModelRepository {
     }
 
     fun getApiKey(): String = AppConfig.getApiKey()
+
+    private fun mergeWithCuratedModels(remoteModels: List<OllamaModelInfo>): List<OllamaModelInfo> {
+        val merged = linkedMapOf<String, OllamaModelInfo>()
+
+        remoteModels
+            .sortedBy { it.displayName }
+            .forEach { model -> merged[model.name.lowercase()] = model }
+
+        curatedModels.forEach { curated ->
+            merged.putIfAbsent(curated.name.lowercase(), curated)
+        }
+
+        return merged.values.sortedBy { it.displayName }
+    }
 
     private fun mapChatMessage(message: ChatMessage): Message {
         val images = message.attachments

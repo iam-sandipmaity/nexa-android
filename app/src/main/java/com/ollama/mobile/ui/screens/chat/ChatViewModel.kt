@@ -13,6 +13,7 @@ import com.ollama.mobile.domain.model.ChatMessage
 import com.ollama.mobile.domain.model.DownloadedOfflineModel
 import com.ollama.mobile.domain.model.MessageAttachment
 import com.ollama.mobile.domain.model.OllamaModelInfo
+import com.ollama.mobile.domain.model.modelNameSupportsVision
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -622,17 +623,8 @@ class ChatViewModel(
         val normalized = modelName
             .removePrefix("library:")
             .removeSuffix("-cloud")
-            .lowercase()
 
-        return normalized.contains("vision") ||
-            normalized.contains("llava") ||
-            normalized.contains("bakllava") ||
-            normalized.contains("minicpm-v") ||
-            normalized.contains("minicpmv") ||
-            normalized.startsWith("gemma3") ||
-            normalized.startsWith("llama4") ||
-            normalized.contains("qwen2.5-vl") ||
-            normalized.contains("qwen2.5vl")
+        return modelNameSupportsVision(normalized)
     }
 
     private fun processStreamingToken(currentText: String, incomingToken: String): StreamProcessResult {

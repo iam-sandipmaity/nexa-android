@@ -24,6 +24,9 @@ data class OllamaModelInfo(
 ) {
     val logo: ImageVector
         get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
+
+    val supportsVision: Boolean
+        get() = modelNameSupportsVision(name)
 }
 
 data class OfflineModelInfo(
@@ -41,6 +44,9 @@ data class OfflineModelInfo(
 ) {
     val logo: ImageVector
         get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
+
+    val supportsVision: Boolean
+        get() = modelNameSupportsVision(name)
     
     val formattedSize: String
         get() = when {
@@ -83,6 +89,9 @@ data class DownloadedOfflineModel(
     
     val family: String
         get() = extractFamily(name)
+
+    val supportsVision: Boolean
+        get() = modelNameSupportsVision(name)
     
     val logo: ImageVector
         get() = familyLogos[family.lowercase()] ?: Icons.Default.CloudDownload
@@ -133,6 +142,9 @@ data class LibraryModelInfo(
 ) {
     val logo: ImageVector
         get() = familyLogos[family.lowercase()] ?: Icons.Default.Psychology
+
+    val supportsVision: Boolean
+        get() = modelNameSupportsVision(name)
 }
 
 data class ChatMessage(
@@ -166,4 +178,17 @@ enum class ModelFamily(val displayName: String) {
     QWEN("Qwen"),
     PHI("Phi"),
     OTHER("Other")
+}
+
+fun modelNameSupportsVision(modelName: String): Boolean {
+    val normalized = modelName.lowercase()
+    return normalized.contains("vision") ||
+        normalized.contains("llava") ||
+        normalized.contains("bakllava") ||
+        normalized.contains("minicpm-v") ||
+        normalized.contains("minicpmv") ||
+        normalized.startsWith("gemma3") ||
+        normalized.startsWith("llama4") ||
+        normalized.contains("qwen2.5-vl") ||
+        normalized.contains("qwen2.5vl")
 }

@@ -190,11 +190,12 @@ fun ChatScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (uiState.selectedModel.isNotEmpty()) {
-                                val displayName = uiState.selectedModel.removePrefix("offline:")
-                                    .split(":").first()
-                                    .replaceFirstChar { it.uppercase() }
                                 Text(
-                                    text = displayName,
+                                    text = resolveSelectedModelDisplayName(
+                                        selectedModel = uiState.selectedModel,
+                                        availableModels = uiState.availableModels,
+                                        downloadedModels = uiState.downloadedModels
+                                    ),
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1
                                 )
@@ -872,7 +873,7 @@ private fun ModelSelectorDialog(
                         items(filteredCloudModels) { model ->
                             ModelListItem(
                                 name = model.displayName,
-                                subtitle = "${model.size} • ${model.family}",
+                                subtitle = buildCloudModelSubtitle(model),
                                 isSelected = currentModel == model.name,
                                 icon = model.logo,
                                 onClick = { onModelSelected(model.name) }
@@ -993,6 +994,35 @@ private fun ModelListItem(
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
+        }
+    }
+}
+
+private fun resolveSelectedModelDisplayName(
+    selectedModel: String,
+    availableModels: List<OllamaModelInfo>,
+    downloadedModels: List<DownloadedOfflineModel>
+): String {
+    return when {
+        selectedModel.startsWith("offline:") -> {
+            val modelId = selectedModel.removePrefix("offline:")
+            downloadedModels.firstOrNull { it.id == modelId }?.displayName
+                ?: modelId.replaceFirstChar { it.uppercase() }
+        }
+        else -> {
+            availableModels.firstOrNull { it.name == selectedModel }?.displayName
+                ?: selectedModel.replaceFirstChar { it.uppercase() }
+        }
+    }
+}
+
+private fun buildCloudModelSubtitle(model: OllamaModelInfo): String {
+    return buildString {
+        append(model.size)
+        append(" | ")
+        append(model.family)
+        if (model.supportsVision) {
+            append(" | Vision")
         }
     }
 }
