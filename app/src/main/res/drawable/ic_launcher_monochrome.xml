@@ -4,7 +4,8 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#14D9C4"
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
         android:pathData="M30,28
             H78
             C83,28 87,32 87,37
@@ -17,10 +18,8 @@
             C25,72 21,68 21,63
             V37
             C21,32 25,28 30,28
-            Z"/>
-    <path
-        android:fillColor="#0D1B2A"
-        android:pathData="M35,38
+            Z
+            M35,38
             H45
             L63,58
             V38
@@ -30,10 +29,8 @@
             L45,50
             V70
             H35
-            Z"/>
-    <path
-        android:fillColor="#F8FAFC"
-        android:pathData="M76,23
+            Z
+            M76,23
             L78.2,29.8
             L85,32
             L78.2,34.2

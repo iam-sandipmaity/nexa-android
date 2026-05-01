@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+  actions: write
+
 env:
   JAVA_VERSION: '17'
   ANDROID_NDK_VERSION: '26.1.10909125'
@@ -73,6 +77,18 @@ jobs:
           echo "path=$TARGET_APK" >> $GITHUB_OUTPUT
           echo "Renamed APK: $TARGET_APK"
 
+      - name: Set artifact name
+        id: artifact
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ARTIFACT_NAME="nexa-pr-${{ github.event.pull_request.number }}-apk"
+          else
+            ARTIFACT_NAME="nexa-${{ github.ref_name }}-apk"
+          fi
+          echo "name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+          echo "Artifact name: $ARTIFACT_NAME"
+        shell: bash
+
       - name: Upload APK to Release
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         uses: softprops/action-gh-release@v2
@@ -90,6 +106,7 @@ jobs:
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nexa-v${{ steps.version.outputs.version_name }}-apk
+          name: ${{ steps.artifact.outputs.name }}
           path: ${{ steps.release_apk.outputs.path }}
           retention-days: 30
+          overwrite: true
