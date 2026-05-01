@@ -1,5 +1,7 @@
 package com.ollama.mobile.data.repository
 
+import android.net.Uri
+import android.util.Base64
 import com.ollama.mobile.data.api.OllamaLibraryClient
 import com.ollama.mobile.data.api.RetrofitClient
 import com.ollama.mobile.data.config.AppConfig
@@ -131,7 +133,7 @@ class ModelRepository {
             val response = api.chat(
                 ChatRequest(
                     model = modelName,
-                    messages = messages.map { Message(it.role, it.content) },
+                    messages = messages.map(::mapChatMessage),
                     stream = false
                 )
             )
@@ -192,6 +194,30 @@ class ModelRepository {
     }
 
     fun getApiKey(): String = AppConfig.getApiKey()
+
+    private fun mapChatMessage(message: ChatMessage): Message {
+        val images = message.attachments
+            .filter { it.mimeType.startsWith("image/") }
+            .mapNotNull(::encodeAttachmentImage)
+            .takeIf { it.isNotEmpty() }
+
+        return Message(
+            role = message.role,
+            content = message.content,
+            images = images
+        )
+    }
+
+    private fun encodeAttachmentImage(attachment: com.ollama.mobile.domain.model.MessageAttachment): String? {
+        return try {
+            val context = AppConfig.getAppContext()
+            context.contentResolver.openInputStream(Uri.parse(attachment.uri))?.use { inputStream ->
+                Base64.encodeToString(inputStream.readBytes(), Base64.NO_WRAP)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     private fun mapRemoteModel(tag: ModelTag): OllamaModelInfo {
         val curated = curatedModels.firstOrNull { it.name == tag.name }

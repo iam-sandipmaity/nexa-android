@@ -68,9 +68,15 @@ fun ChatScreen(
     var showNoModelWarning by remember { mutableStateOf(false) }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         uris.forEach { uri ->
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
             viewModel.addAttachment(context, uri)
         }
     }
@@ -292,7 +298,7 @@ fun ChatScreen(
                     enabled = !uiState.isLoading,
                     isGenerating = uiState.isLoading,
                     pendingAttachments = uiState.pendingAttachments,
-                    onAttachFile = { filePickerLauncher.launch("*/*") },
+                    onAttachFile = { filePickerLauncher.launch(arrayOf("*/*")) },
                     onRemoveAttachment = viewModel::removeAttachment
                 )
 
@@ -541,13 +547,13 @@ private fun MessageInputBox(
                         .size(48.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .background(
-                            if (enabled && value.isNotBlank())
+                            if (enabled && (value.isNotBlank() || pendingAttachments.isNotEmpty()))
                                 MaterialTheme.colorScheme.primary
                             else
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
                         )
                         .clickable(
-                            enabled = enabled && value.isNotBlank(),
+                            enabled = enabled && (value.isNotBlank() || pendingAttachments.isNotEmpty()),
                             onClick = {
                                 focusManager.clearFocus()
                                 onSend()
@@ -558,7 +564,7 @@ private fun MessageInputBox(
                     Icon(
                         Icons.Default.Send,
                         contentDescription = "Send",
-                        tint = if (enabled && value.isNotBlank())
+                        tint = if (enabled && (value.isNotBlank() || pendingAttachments.isNotEmpty()))
                             MaterialTheme.colorScheme.onPrimary
                         else
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),

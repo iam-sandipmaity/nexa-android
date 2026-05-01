@@ -19,8 +19,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.io.File
-import java.io.FileOutputStream
 import java.util.UUID
 
 data class ChatUiState(
@@ -350,38 +348,36 @@ class ChatViewModel(
         val text = _uiState.value.inputText.trim()
         val attachments = _uiState.value.pendingAttachments
         if ((text.isBlank() && attachments.isEmpty()) || _uiState.value.isLoading) return
-        
+
+        val imageAttachments = attachments.filter { it.mimeType.startsWith("image/") }
+        val context = AppConfig.getAppContext()
+
         if (isOfflineModel(_uiState.value.selectedModel)) {
             if (!_uiState.value.isModelLoaded) {
+                _uiState.value = _uiState.value.copy(error = "Model still loading...")
+                return
+            }
+
+            if (imageAttachments.isNotEmpty()) {
                 _uiState.value = _uiState.value.copy(
-                    error = "Model still loading..."
+                    error = "Offline image analysis isn't supported by the current on-device engine yet. Use a vision-capable cloud model for image uploads."
                 )
                 return
             }
-            
-            val context = AppConfig.getAppContext()
-            
-            val contentWithFileContext = if (attachments.isNotEmpty()) {
-                val fileDescriptions = attachments.map { attachment ->
-                    when {
-                        attachment.mimeType.startsWith("image/") -> "[Image attached: ${attachment.fileName}]"
-                        attachment.mimeType.startsWith("text/") -> {
-                            val content = readUriContent(context, Uri.parse(attachment.uri))
-                            if (content != null) "[File: ${attachment.fileName}\nContent: ${content.take(2000)}]"
-                            else "[File: ${attachment.fileName}]"
-                        }
-                        else -> "[File attached: ${attachment.fileName} (${attachment.mimeType})]"
-                    }
-                }.joinToString("\n")
-                
-                if (text.isNotBlank()) "$fileDescriptions\n\n$text" else fileDescriptions
-            } else {
-                text
-            }
-            
-            val userMessage = ChatMessage(role = "user", content = contentWithFileContext, attachments = attachments)
+
+            val contentWithFileContext = buildMessageContent(
+                context = context,
+                text = text,
+                attachments = attachments
+            )
+
+            val userMessage = ChatMessage(
+                role = "user",
+                content = contentWithFileContext,
+                attachments = attachments
+            )
             val newMessages = _uiState.value.messages + userMessage
-            
+
             _uiState.value = _uiState.value.copy(
                 messages = newMessages,
                 inputText = "",
@@ -390,17 +386,15 @@ class ChatViewModel(
                 error = null,
                 pendingAttachments = emptyList()
             )
-            
-            // Save chat history immediately after user message
+
             saveChatToHistory()
-            
-            // Start streaming response
+
             streamingJob?.cancel()
             streamingJob = viewModelScope.launch {
                 try {
                     val responseBuilder = StringBuilder()
                     var shouldStopGeneration = false
-                    
+
                     inferenceEngine?.chat(newMessages)?.collect { token ->
                         val current = processStreamingToken(responseBuilder.toString(), token)
                         responseBuilder.clear()
@@ -415,8 +409,7 @@ class ChatViewModel(
                             return@collect
                         }
                     }
-                    
-                    // Done streaming
+
                     val fullResponse = sanitizeModelArtifacts(responseBuilder.toString())
                     if (fullResponse.isBlank() && shouldStopGeneration) {
                         _uiState.value = _uiState.value.copy(
@@ -425,18 +418,18 @@ class ChatViewModel(
                         )
                         return@launch
                     }
+
                     val assistantMessage = ChatMessage(
                         role = "assistant",
                         content = fullResponse
                     )
-                    
+
                     _uiState.value = _uiState.value.copy(
                         messages = _uiState.value.messages + assistantMessage,
                         isLoading = false,
                         streamingResponse = ""
                     )
-                    
-                    // Save chat history after assistant response
+
                     saveChatToHistory()
                 } catch (e: Exception) {
                     _uiState.value = _uiState.value.copy(
@@ -448,7 +441,7 @@ class ChatViewModel(
             }
             return
         }
-        
+
         if (!repository.hasApiKey()) {
             _uiState.value = _uiState.value.copy(
                 error = "Add your Nexa Cloud API key in Settings before chatting.",
@@ -457,27 +450,34 @@ class ChatViewModel(
             return
         }
 
-        val context = AppConfig.getAppContext()
-        
-        val contentWithFileContext = if (attachments.isNotEmpty()) {
-            val fileDescriptions = attachments.map { attachment ->
-                when {
-                    attachment.mimeType.startsWith("image/") -> "[Image attached: ${attachment.fileName}]"
-                    attachment.mimeType.startsWith("text/") -> {
-                        val content = readUriContent(context, Uri.parse(attachment.uri))
-                        if (content != null) "[File: ${attachment.fileName}\nContent: ${content.take(2000)}]"
-                        else "[File: ${attachment.fileName}]"
-                    }
-                    else -> "[File attached: ${attachment.fileName} (${attachment.mimeType})]"
-                }
-            }.joinToString("\n")
-            
-            if (text.isNotBlank()) "$fileDescriptions\n\n$text" else fileDescriptions
-        } else {
-            text
+        if (imageAttachments.isNotEmpty() && !supportsVision(_uiState.value.selectedModel)) {
+            _uiState.value = _uiState.value.copy(
+                error = "This cloud model doesn't support image inputs. Choose a vision-capable model such as Gemma 3, Llama 3.2 Vision, or Llama 4."
+            )
+            return
         }
 
-        val userMessage = ChatMessage(role = "user", content = contentWithFileContext)
+        val inaccessibleImages = imageAttachments.filter {
+            encodeImageToBase64(context, Uri.parse(it.uri)).isNullOrBlank()
+        }
+        if (inaccessibleImages.isNotEmpty()) {
+            _uiState.value = _uiState.value.copy(
+                error = "One or more images couldn't be read. Please re-attach them and try again."
+            )
+            return
+        }
+
+        val contentWithFileContext = buildMessageContent(
+            context = context,
+            text = text,
+            attachments = attachments
+        )
+
+        val userMessage = ChatMessage(
+            role = "user",
+            content = contentWithFileContext,
+            attachments = attachments
+        )
         val newMessages = _uiState.value.messages + userMessage
 
         _uiState.value = _uiState.value.copy(
@@ -488,7 +488,6 @@ class ChatViewModel(
             pendingAttachments = emptyList()
         )
 
-        // Save chat history immediately after user message
         saveChatToHistory()
 
         viewModelScope.launch {
@@ -503,7 +502,6 @@ class ChatViewModel(
                         isLoading = false,
                         isConnected = true
                     )
-                    // Save chat history after assistant response
                     saveChatToHistory()
                 },
                 onFailure = { error ->
@@ -590,6 +588,52 @@ class ChatViewModel(
     private fun isOfflineModel(modelName: String): Boolean = modelName.startsWith("offline:")
 
     private fun isLibraryModel(modelName: String): Boolean = modelName.startsWith("library:")
+
+    private fun buildMessageContent(
+        context: Context,
+        text: String,
+        attachments: List<MessageAttachment>
+    ): String {
+        val attachmentContext = attachments.mapNotNull { attachment ->
+            when {
+                attachment.mimeType.startsWith("text/") -> {
+                    val content = readUriContent(context, Uri.parse(attachment.uri))
+                    if (content != null) "[File: ${attachment.fileName}\nContent: ${content.take(2000)}]"
+                    else "[File: ${attachment.fileName}]"
+                }
+                attachment.mimeType.startsWith("image/") -> null
+                else -> "[File attached: ${attachment.fileName} (${attachment.mimeType})]"
+            }
+        }.joinToString("\n")
+
+        val parts = listOfNotNull(
+            attachmentContext.takeIf { it.isNotBlank() },
+            text.takeIf { it.isNotBlank() }
+        )
+
+        return when {
+            parts.isNotEmpty() -> parts.joinToString("\n\n")
+            attachments.any { it.mimeType.startsWith("image/") } -> "Please analyze the attached image."
+            else -> ""
+        }
+    }
+
+    private fun supportsVision(modelName: String): Boolean {
+        val normalized = modelName
+            .removePrefix("library:")
+            .removeSuffix("-cloud")
+            .lowercase()
+
+        return normalized.contains("vision") ||
+            normalized.contains("llava") ||
+            normalized.contains("bakllava") ||
+            normalized.contains("minicpm-v") ||
+            normalized.contains("minicpmv") ||
+            normalized.startsWith("gemma3") ||
+            normalized.startsWith("llama4") ||
+            normalized.contains("qwen2.5-vl") ||
+            normalized.contains("qwen2.5vl")
+    }
 
     private fun processStreamingToken(currentText: String, incomingToken: String): StreamProcessResult {
         val appended = currentText + incomingToken
